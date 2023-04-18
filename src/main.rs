@@ -5,7 +5,7 @@ use sdl2::rect::Point;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
-use image::{RgbaImage, ImageFormat};
+use image::{RgbaImage, ImageFormat, open};
 
 use std::io;
 use std::fs;
@@ -86,13 +86,26 @@ fn decode_cz(mut input:Vec<u8>) -> Image {
     return final_image;
 }
 
+/*
+fn encode_cz() -> Image {
+    let on_top = open("path/to/some.png").unwrap().into_rgb8();
+
+    // Construct the image struct
+    let final_image = Image {
+        header,
+        bitmap: input,
+    };
+
+    return Image;
+}*/
+
 fn main() -> io::Result<()> {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     // Read all bytes of the CZ image to an array
     println!("Reading image...");
-    let image_raw = fs::read("numbers.cz0")?;
+    let image_raw = fs::read("782s.cz0")?;
 
     let image = decode_cz(image_raw);
 
