@@ -1,0 +1,9 @@
+[package]
+name = "cz_render"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = { version = "0.24.6", features = ["webp", "webp-encoder"] }
+sdl2 = { version = "0.35.2", features = ["gfx"] }
+sdl2-sys = "0.35.2"
