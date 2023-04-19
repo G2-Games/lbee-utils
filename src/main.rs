@@ -13,11 +13,12 @@ use std::thread;
 use std::time::Duration;
 
 struct Header {
-    magic: [u8; 3],     // The magic bytes, can be CZ0, CZ1, CZ2
+    magic: [u8; 3],     // The magic bytes, can be CZ0, (CZ1, CZ2?)
     res: (i16, i16),    // The width in the header
     depth: i16,         // Bit depth
     crop: (i16, i16),   // Crop dimensions
     bounds: (i16, i16), // Bounding box dimensions
+    offset: (i16, i16), // Offset coordinates
 }
 
 struct Image {
@@ -25,37 +26,45 @@ struct Image {
     bitmap: Vec<u8>,
 }
 
-// Converts 8 bit bytes to 16 bit words in little endian
+// Converts 8 bit bytes to a 16 bit little endian word
 fn bytes_to_word(first:u8, second:u8) -> i16 {
     let final_value = ((second as i16) << 8) | (first as i16);
 
     return final_value;
 }
 
-fn extract_header(header_vec: Vec<u8>) -> Header {
+fn extract_header(header_vec: &Vec<u8>) -> (Header, usize) {
     // Get the magic bytes
     let magic: [u8; 3] = header_vec[0..3].try_into().unwrap();
+    println!("Magic Bytes:   {:?}", magic);
+
+    // Get the length of the header
+    let header_length = header_vec[4];
+    println!("Header Length: {:?}", header_length);
 
     // Convert the width and height to i16 values
     let width = bytes_to_word(header_vec[8], header_vec[9]);
     let height = bytes_to_word(header_vec[10], header_vec[11]);
+    println!("Resolution:    {}x{}", width, height);
 
     // Get the bit depth
     let depth = bytes_to_word(header_vec[12], header_vec[13]);
+    println!("Bit Depth:     {} bits", depth);
 
     // Get the crop resolution
     let crop_width = bytes_to_word(header_vec[20], header_vec[21]);
     let crop_height = bytes_to_word(header_vec[22], header_vec[23]);
+    println!("Crop Coords:   {}x{}", crop_width, crop_height);
 
     // Get bounding box
     let bound_width = bytes_to_word(header_vec[24], header_vec[25]);
     let bound_height = bytes_to_word(header_vec[26], header_vec[27]);
+    println!("Bound Coords:  {}x{}", bound_width, bound_height);
 
-    println!("Magic Bytes:  {:?}", magic);
-    println!("Resolution:   {}x{}", width, height);
-    println!("Bit Depth:    {} bits", depth);
-    println!("Crop Coords:  {}x{}", crop_width, crop_height);
-    println!("Bound Coords: {}x{}", bound_width, bound_height);
+    // Get offset coordinates
+    let offset_x = bytes_to_word(header_vec[28], header_vec[29]);
+    let offset_y = bytes_to_word(header_vec[30], header_vec[31]);
+    println!("Offset Coords: {}x{}", offset_x, offset_y);
 
     let image_header = Header {
         magic,
@@ -63,19 +72,19 @@ fn extract_header(header_vec: Vec<u8>) -> Header {
         depth,
         crop: (crop_width, crop_height),
         bounds: (bound_width, bound_height),
+        offset: (offset_x, offset_y),
     };
 
-    return image_header;
+    return (image_header, header_length as usize);
 }
 
 // Provided a bitstream, extract the header information and
 // the rest of the metadata about a CZ file
 fn decode_cz(mut input:Vec<u8>) -> Image {
 
-    // Get the header from the first 28 (?) bytes
     // TODO Research the header more!
-    let header_bytes: Vec<u8> = input.drain(0..28).collect();
-    let header = extract_header(header_bytes);
+    let (header, header_length)= extract_header(&input);
+    input.drain(..header_length);
 
     // Construct the image struct
     let final_image = Image {
@@ -105,12 +114,15 @@ fn main() -> io::Result<()> {
 
     // Read all bytes of the CZ image to an array
     println!("Reading image...");
-    let image_raw = fs::read("782s.cz0")?;
+    let image_raw = fs::read("775.cz0")?;
 
     let image = decode_cz(image_raw);
 
     let width = image.header.res.0 as i32;
     let height = image.header.res.1 as i32;
+
+    println!("{}", width*height);
+    println!("{}", image.bitmap.len() / 4);
 
     // Build the window
     let window = video_subsystem.window("SDL2 Rust", width as u32, height as u32)
@@ -143,18 +155,25 @@ fn main() -> io::Result<()> {
     canvas.present(); // Display the image on the SDL2 canvas
 
     // Create and save a PNG of the image data
-    let tmp = RgbaImage::from_raw(
+    // This errors if the image data is too short
+    let tmp = match RgbaImage::from_raw(
         width as u32,
         height as u32,
-        image.bitmap
-    ).unwrap();
+        image.bitmap,
+    ) {
+        Some(img) => img,
+        None => {
+            RgbaImage::new(0, 0)
+        }
+    };
 
     match tmp.save_with_format("tmp.png", ImageFormat::Png) {
         Ok(()) => {
             println!("Image saved successfully");
         }
         Err(e) => {
-            eprintln!("Error saving image: {}", e);
+            eprintln!("ERROR SAVING IMAGE: {}", e);
+            eprintln!("You probably have an image with the CZ0 offset bug!")
         }
     }
 

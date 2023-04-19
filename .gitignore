@@ -11,4 +11,5 @@ Cargo.lock
 
 # Ignore CZ image files
 *.cz*
+*.CZ*
 tmp.png
