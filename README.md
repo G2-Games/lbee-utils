@@ -18,5 +18,6 @@ The CZ0 header:
 | 0x1A        | 34 03      | 820   | Height of image bounding box      |
 | 0x1C        | 80 02      | 640   | X offset of image                 |
 | 0x1E        | 02 03      | 770   | Y offset of image                 |
+| 0x20 - 0x23 | ---        | ---   | ---[Unknown]---                   |
 
 <sup>Bytes are in Little Endian order</sup>
