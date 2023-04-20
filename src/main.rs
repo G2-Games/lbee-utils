@@ -1,9 +1,13 @@
-use image::{RgbaImage, ImageFormat, open};
+use image::{RgbaImage, Rgba, ImageFormat, open};
 
+use std::env;
 use std::io;
-use std::io::Write;
+use std::io::{Write, BufReader, Read};
 use std::fs;
 use std::fs::File;
+
+pub mod utils;
+use utils::util::*;
 
 struct HeaderCZ0 {
     magic: [u8; 3],     // The magic bytes, can be CZ0, (CZ1, CZ2?)
@@ -16,24 +20,9 @@ struct HeaderCZ0 {
     offset: (i16, i16), // Offset coordinates
 }
 
-struct CZ0File {
+struct CZFile {
     header: HeaderCZ0,
     bitmap: Vec<u8>,
-}
-
-// Converts 8 bit bytes to a 16 bit little endian word or
-fn bytes_to_word(first:u8, second:u8) -> i16 {
-    let final_value = ((second as i16) << 8) | (first as i16);
-
-    return final_value;
-}
-
-// Converts a 16 bit little endian word to 8 bit bytes
-fn word_to_bytes(word:i16) -> [u8; 2] {
-    let first: u8 = (word & 0xFF) as u8; // Extract the first byte
-    let second: u8 = ((word >> 8) & 0xFF) as u8; // Extract the second byte
-
-    return [first, second];
 }
 
 /// Extract all the header information from a CZ0 file
@@ -93,7 +82,7 @@ fn extract_header_cz0(header_vec: &Vec<u8>) -> (HeaderCZ0, usize) {
 /// Provided a bitstream, extract the header information and
 /// the rest of the metadata about a CZ0 file, returning a
 /// struct containing the header information and bitmap
-fn decode_cz0(input_filename:&str) -> CZ0File {
+fn decode_cz0(input_filename:&str) -> CZFile {
     println!("Reading input file...");
     let mut input = fs::read(input_filename).unwrap();
 
@@ -103,7 +92,7 @@ fn decode_cz0(input_filename:&str) -> CZ0File {
     input.drain(..header_length);
 
     // Construct the output CZ0 image
-    let final_image = CZ0File {
+    let final_image = CZFile {
         header,
         bitmap: input,
     };
@@ -114,27 +103,14 @@ fn decode_cz0(input_filename:&str) -> CZ0File {
 /// Provided an image, extract the bitstream and create the
 /// header information from a previous CZ0 file in order to
 /// replace it
-fn encode_cz0(original_file:CZ0File, in_name:&str, out_name:&str) -> io::Result<()> {
+fn encode_cz0(original_file:CZFile, input_image:RgbaImage, out_name:&str) -> io::Result<()> {
     println!("Reading input file...");
-    let input_image = open(in_name).unwrap().into_rgba8();
     let (input_width, input_height) = input_image.dimensions();
-
-    let width_diff = input_width as i16 - original_file.header.res.0;
-    let height_diff = input_height as i16 - original_file.header.res.1;
-
-    // Offset
-    let offset_x = original_file.header.offset.0 + width_diff;
-    let offset_y = original_file.header.offset.1 + height_diff;
-
-    let mut length = 28;
-    if offset_y > 0 || offset_x > 0 {
-        length = 36;
-    }
 
     // Construct the header
     let header = HeaderCZ0 {
         magic: [67, 90, 48],
-        length,
+        length: original_file.header.length,
         res: (input_width as i16, input_height as i16),
         depth: original_file.header.depth,
         mystery: original_file.header.mystery,
@@ -160,7 +136,6 @@ fn encode_cz0(original_file:CZ0File, in_name:&str, out_name:&str) -> io::Result<
         &[header.depth],
 
         &header.mystery,
-
         &word_to_bytes(header.crop.0),
         &word_to_bytes(header.crop.1),
 
@@ -172,22 +147,30 @@ fn encode_cz0(original_file:CZ0File, in_name:&str, out_name:&str) -> io::Result<
         &vec![0u8; 4],
     ].concat();
 
-    header_assembled.drain(length as usize..);
+    println!("{:?}", header_assembled);
 
+    // Cut off unnecessary information from the header
+    header_assembled.drain(header.length as usize..);
+
+    // Write the header to the image
     file.write_all(&header_assembled)?;
 
     // Write the actual image data
     file.write_all(&bitmap)?;
 
+    let actual_size = input_width * input_height;
+
+    if actual_size > bitmap.len() as u32 {
+        let size_diff = bitmap.len() as u32 - actual_size;
+        file.write_all(&vec![0u8; size_diff as usize])?;
+    }
+
     return Ok(());
 }
 
-fn main() -> io::Result<()> {
-    let image = decode_cz0("775.cz0");
-
-    /*
-    // Create and save a PNG of the image data
-    // This errors if the image data is too short
+// Create and save a PNG of the image data
+// This errors if the image data is too short
+fn create_png(image:CZFile, out_name:&str) {
     let tmp = match RgbaImage::from_raw(
         image.header.res.0 as u32,
         image.header.res.1 as u32,
@@ -207,15 +190,18 @@ fn main() -> io::Result<()> {
             eprintln!("ERROR SAVING IMAGE: {}", e);
             eprintln!("You probably have an image with the CZ0 offset bug!")
         }
-    }*/
+    }
+}
 
+fn main() {
 
-    match encode_cz0(image, "melon_test.png", "test.cz0") {
+    /*
+    match encode_cz0(img, img2, "test.cz0") {
         Ok(file) => file,
         Err(error) => panic!("Problem opening the file: {:?}", error),
-    };
+    };*/
 
-    decode_cz0("test.cz0"); // Running this function standalone simply prints information about the image's header
-
-    return Ok(());
+    // Running this function standalone simply prints information about the image's header
+    let image = decode_cz0("test.cz0");
+    create_png(image, "tmp.png");
 }
