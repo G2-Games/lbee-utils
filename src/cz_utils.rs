@@ -1,28 +1,59 @@
-#[derive(Debug)]
-    struct HeaderCZ {
-        magic: [u8; 3],     // The magic bytes, can be CZ0, (CZ1, CZ2?)
-        length: u8,
-        res: (i16, i16),    // The width in the header
-        depth: u8,         // Bit depth
-        mystery: Vec<u8>,
-        crop: (i16, i16),   // Crop dimensions
-        bounds: (i16, i16), // Bounding box dimensions
-        offset: (i16, i16), // Offset coordinates
-    }
+use image::{RgbaImage, ImageFormat};
 
+/// The header of a CZ* file
+#[derive(Debug)]
+struct HeaderCZ {
+    magic: [u8; 3],     // The magic bytes, can be CZ0, (CZ1, CZ2?)
+    length: u8,
+    res: (i16, i16),    // The width in the header
+    depth: u8,         // Bit depth
+    mystery: Vec<u8>,
+    crop: (i16, i16),   // Crop dimensions
+    bounds: (i16, i16), // Bounding box dimensions
+    offset: (i16, i16), // Offset coordinates
+}
+
+/// Defines a file that has a header and a
+/// bitmap body
 #[derive(Debug)]
 pub struct CZFile {
     header: HeaderCZ,
     bitmap: Vec<u8>,
 }
 
+/// Create and save a PNG of the image data
+/// This errors if the image data is too short
+pub fn create_png(image:&CZFile, out_name:&str) {
+    let process_bitmap = image.bitmap.clone();
+
+    let tmp = match RgbaImage::from_raw(
+        image.header.res.0 as u32,
+        image.header.res.1 as u32,
+        process_bitmap,
+    ) {
+        Some(img) => img,
+        None => {
+            RgbaImage::new(0, 0)
+        }
+    };
+
+    match tmp.save_with_format(out_name, ImageFormat::Png) {
+        Ok(()) => {}
+        Err(e) => {
+            eprintln!("ERROR SAVING IMAGE: {}", e);
+            eprintln!("You probably have an image with the CZ0 offset bug!")
+        }
+    }
+}
+
+/// Utilities for decoding CZ0 images
 pub mod cz0 {
     use std::io;
     use std::io::Write;
     use std::fs;
     use std::fs::File;
 
-    use image::{RgbaImage, DynamicImage, ImageFormat};
+    use image::DynamicImage;
     use crate::utils::*;
     use crate::cz_utils::{CZFile, HeaderCZ};
 
@@ -173,31 +204,6 @@ pub mod cz0 {
         println!("--Finished CZ0 Encode--");
         println!("");
         return Ok(());
-    }
-
-    /// Create and save a PNG of the image data
-    /// This errors if the image data is too short
-    pub fn create_png(image:&CZFile, out_name:&str) {
-        let process_bitmap = image.bitmap.clone();
-
-        let tmp = match RgbaImage::from_raw(
-            image.header.res.0 as u32,
-            image.header.res.1 as u32,
-            process_bitmap,
-        ) {
-            Some(img) => img,
-            None => {
-                RgbaImage::new(0, 0)
-            }
-        };
-
-        match tmp.save_with_format(out_name, ImageFormat::Png) {
-            Ok(()) => {}
-            Err(e) => {
-                eprintln!("ERROR SAVING IMAGE: {}", e);
-                eprintln!("You probably have an image with the CZ0 offset bug!")
-            }
-        }
     }
 
     pub fn display_info(image:&CZFile) {
