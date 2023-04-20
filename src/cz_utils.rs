@@ -1,12 +1,12 @@
-use image::{RgbaImage, ImageFormat};
+use image::{ImageFormat, RgbaImage};
 
 /// The header of a CZ* file
 #[derive(Debug)]
 struct HeaderCZ {
-    magic: [u8; 3],     // The magic bytes, can be CZ0, (CZ1, CZ2?)
+    magic: [u8; 3], // The magic bytes, can be CZ0, (CZ1, CZ2?)
     length: u8,
-    res: (i16, i16),    // The width in the header
-    depth: u8,         // Bit depth
+    res: (i16, i16), // The width in the header
+    depth: u8,       // Bit depth
     mystery: Vec<u8>,
     crop: (i16, i16),   // Crop dimensions
     bounds: (i16, i16), // Bounding box dimensions
@@ -23,21 +23,17 @@ pub struct CZFile {
 
 /// Create and save a PNG of the image data
 /// This errors if the image data is too short
-pub fn create_png(image:&CZFile, out_name:&str) {
+pub fn create_png(image: &CZFile, out_name: &str) {
     let process_bitmap = image.bitmap.clone();
 
-    let tmp = match RgbaImage::from_raw(
+    let image_data = RgbaImage::from_raw(
         image.header.res.0 as u32,
         image.header.res.1 as u32,
         process_bitmap,
-    ) {
-        Some(img) => img,
-        None => {
-            RgbaImage::new(0, 0)
-        }
-    };
+    )
+    .expect("Error encoding the image");
 
-    match tmp.save_with_format(out_name, ImageFormat::Png) {
+    match image_data.save_with_format(out_name, ImageFormat::Png) {
         Ok(()) => {}
         Err(e) => {
             eprintln!("ERROR SAVING IMAGE: {}", e);
@@ -48,17 +44,17 @@ pub fn create_png(image:&CZFile, out_name:&str) {
 
 /// Utilities for decoding CZ0 images
 pub mod cz0 {
-    use std::io;
-    use std::io::Write;
     use std::fs;
     use std::fs::File;
+    use std::io;
+    use std::io::Write;
 
-    use image::DynamicImage;
-    use crate::utils::*;
     use crate::cz_utils::{CZFile, HeaderCZ};
+    use crate::utils::*;
+    use image::DynamicImage;
 
     /// Extract all the header information from a CZ0 file
-    fn extract_header_cz0(header_vec:&Vec<u8>) -> (HeaderCZ, usize) {
+    fn extract_header_cz0(header_vec: &Vec<u8>) -> (HeaderCZ, usize) {
         // Get the magic bytes
         let magic: [u8; 3] = header_vec[0..3].try_into().unwrap();
 
@@ -104,7 +100,7 @@ pub mod cz0 {
     /// Provided a bitstream, extract the header information and
     /// the rest of the metadata about a CZ0 file, returning a
     /// struct containing the header information and bitmap
-    pub fn decode_cz0(input_filename:&str) -> CZFile {
+    pub fn decode_cz0(input_filename: &str) -> CZFile {
         println!("");
         println!("--Beginning CZ0 Decode--");
         let mut input = fs::read(input_filename).unwrap();
@@ -132,7 +128,11 @@ pub mod cz0 {
     /// Provided an image, extract the bitstream and create the
     /// header information from a previous CZ0 file in order to
     /// replace it
-    pub fn encode_cz0(original_file:CZFile, input_image:DynamicImage, out_name:&str) -> io::Result<()> {
+    pub fn encode_cz0(
+        original_file: CZFile,
+        input_image: DynamicImage,
+        out_name: &str,
+    ) -> io::Result<()> {
         println!("");
         println!("--Beginning CZ0 Encode--");
 
@@ -161,22 +161,19 @@ pub mod cz0 {
             &[0],
             &[header.length],
             &vec![0u8; 3],
-
             &word_to_bytes(header.res.0),
             &word_to_bytes(header.res.1),
             &[header.depth],
-
             &header.mystery,
             &word_to_bytes(header.crop.0),
             &word_to_bytes(header.crop.1),
-
             &word_to_bytes(header.bounds.0),
             &word_to_bytes(header.bounds.1),
-
             &word_to_bytes(header.offset.0),
             &word_to_bytes(header.offset.1),
             &vec![0u8; 4],
-        ].concat();
+        ]
+        .concat();
 
         println!("Trimming Header...");
         // Cut off unnecessary information from the header
@@ -206,7 +203,7 @@ pub mod cz0 {
         return Ok(());
     }
 
-    pub fn display_info(image:&CZFile) {
+    pub fn display_info(image: &CZFile) {
         let mut image_size = image.bitmap.len() as f32 + image.header.length as f32;
         image_size /= 1024.0;
 
@@ -214,11 +211,23 @@ pub mod cz0 {
         println!("Image size    : {:.2} KB", image_size);
         println!("Magic Bytes   : {:?}", image.header.magic);
         println!("Header Length : {:?} bytes", image.header.length);
-        println!("Resolution    : {}x{}", image.header.res.0, image.header.res.1);
+        println!(
+            "Resolution    : {}x{}",
+            image.header.res.0, image.header.res.1
+        );
         println!("Bit Depth     : {} bits", image.header.depth);
         println!("Mystery Bytes : {:?}", image.header.mystery);
-        println!("Crop Coords   : {}x{}", image.header.crop.0, image.header.crop.1);
-        println!("Bound Coords  : {}x{}", image.header.bounds.0, image.header.bounds.1);
-        println!("Offset Coords : {}x{}", image.header.offset.0, image.header.offset.1);
+        println!(
+            "Crop Coords   : {}x{}",
+            image.header.crop.0, image.header.crop.1
+        );
+        println!(
+            "Bound Coords  : {}x{}",
+            image.header.bounds.0, image.header.bounds.1
+        );
+        println!(
+            "Offset Coords : {}x{}",
+            image.header.offset.0, image.header.offset.1
+        );
     }
 }
