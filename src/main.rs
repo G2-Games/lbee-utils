@@ -1,6 +1,6 @@
-pub mod cz_utils;
-pub mod utils;
-use cz_utils::create_png;
+// Create the modules
+pub mod cz_utils; // CZ file tools
+pub mod utils;    // Generic tools
 use cz_utils::cz0::*;
 
 fn main() {
@@ -12,5 +12,5 @@ fn main() {
 
     let image = decode_cz0("test.cz0");
     display_info(&image);
-    create_png(&image, "tmp.png");
+    image.create_png("tmp.png");
 }

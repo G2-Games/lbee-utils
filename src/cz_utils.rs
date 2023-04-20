@@ -21,23 +21,25 @@ pub struct CZFile {
     bitmap: Vec<u8>,
 }
 
-/// Create and save a PNG of the image data
-/// This errors if the image data is too short
-pub fn create_png(image: &CZFile, out_name: &str) {
-    let process_bitmap = image.bitmap.clone();
+impl CZFile {
+    /// Create and save a PNG of the image data
+    /// This errors if the image data is too short
+    pub fn create_png(&self, out_name: &str) {
+        let process_bitmap = self.bitmap.clone();
 
-    let image_data = RgbaImage::from_raw(
-        image.header.res.0 as u32,
-        image.header.res.1 as u32,
-        process_bitmap,
-    )
-    .expect("Error encoding the image");
+        let image_data = RgbaImage::from_raw(
+            self.header.res.0 as u32,
+            self.header.res.1 as u32,
+            process_bitmap,
+        )
+        .expect("Error encoding the image");
 
-    match image_data.save_with_format(out_name, ImageFormat::Png) {
-        Ok(()) => {}
-        Err(e) => {
-            eprintln!("ERROR SAVING IMAGE: {}", e);
-            eprintln!("You probably have an image with the CZ0 offset bug!")
+        match image_data.save_with_format(out_name, ImageFormat::Png) {
+            Ok(()) => {}
+            Err(e) => {
+                eprintln!("ERROR SAVING IMAGE: {}", e);
+                eprintln!("You probably have an image with the CZ0 offset bug!")
+            }
         }
     }
 }
@@ -103,7 +105,7 @@ pub mod cz0 {
     pub fn decode_cz0(input_filename: &str) -> CZFile {
         println!("");
         println!("--Beginning CZ0 Decode--");
-        let mut input = fs::read(input_filename).unwrap();
+        let mut input = fs::read(input_filename).expect("Error, could not open image");
 
         println!("Extracting Header...");
         // TODO Research the header more!

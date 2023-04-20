@@ -1,4 +1,4 @@
-/// Converts 8 bit bytes to a 16 bit little endian word or
+/// Converts 8 bit bytes to a 16 bit little endian word
 pub fn bytes_to_word(first: u8, second: u8) -> i16 {
     let final_value = ((second as i16) << 8) | (first as i16);
 
