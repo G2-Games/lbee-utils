@@ -1,19 +1,14 @@
-// Create the modules
-pub mod cz_utils;
-pub mod utils;
+pub mod cz_common;
+pub mod formats{
+    pub mod cz0;
+}
 
 // Generic tools
 use std::fs;
-
-use crate::cz_utils::CZHeader;
-
+use crate::cz_common::CommonHeader;
 
 fn main() {
-    let input = fs::read(
-        "/home/g2/Documents/projects/lbee-utils/test_files/GOOD_extra_bg.cz3"
-    ).expect("Error, could not open image");
-
-    let header = CZHeader::new(&input);
-
-    dbg!(header);
+    let input = fs::read("../test_files/x5a3bvy.cz1").expect("Error, could not open image");
+    let header = CommonHeader::new(&input);
+    println!("{:?}", header);
 }
