@@ -18,10 +18,10 @@ pub struct Cz0Header {
     bounds_height: u16,
 
     /// Offset width
-    offset_width: u16,
+    offset_width: Option<u16>,
 
     /// Offset height
-    offset_height: u16,
+    offset_height: Option<u16>,
 }
 
 #[derive(Debug)]
@@ -38,6 +38,13 @@ impl CzHeader for Cz0Header {
             return Err(CzError::VersionMismatch)
         }
 
+        let mut offset_width = None;
+        let mut offset_height = None;
+        if common.length < 28 {
+            offset_width = Some(u16::from_le_bytes(bytes[28..30].try_into().unwrap()));
+            offset_height = Some(u16::from_le_bytes(bytes[30..32].try_into().unwrap()));
+        }
+
         Ok(Self {
             common,
 
@@ -47,8 +54,8 @@ impl CzHeader for Cz0Header {
             bounds_width: u16::from_le_bytes(bytes[24..26].try_into().unwrap()),
             bounds_height: u16::from_le_bytes(bytes[26..28].try_into().unwrap()),
 
-            offset_width: u16::from_le_bytes(bytes[28..30].try_into().unwrap()),
-            offset_height: u16::from_le_bytes(bytes[30..32].try_into().unwrap()),
+            offset_width,
+            offset_height,
         })
     }
 

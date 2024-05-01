@@ -9,7 +9,7 @@ use std::fs;
 use crate::{cz_common::CzImage, formats::cz0::Cz0Image};
 
 fn main() {
-    let input = fs::read("../test_files/Old_TestFiles/LOGO0.CZ0").expect("Error, could not open image");
+    let input = fs::read("../test_files/Old_TestFiles/EX_PT.CZ0").expect("Error, could not open image");
     let cz0_file = Cz0Image::decode(&input).unwrap();
     println!("{:#?}", cz0_file.header());
 
