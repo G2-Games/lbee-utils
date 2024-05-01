@@ -5,10 +5,13 @@ pub mod formats{
 
 // Generic tools
 use std::fs;
-use crate::cz_common::CommonHeader;
+
+use crate::{cz_common::CzImage, formats::cz0::Cz0Image};
 
 fn main() {
-    let input = fs::read("../test_files/x5a3bvy.cz1").expect("Error, could not open image");
-    let header = CommonHeader::new(&input);
-    println!("{:?}", header);
+    let input = fs::read("../test_files/Old_TestFiles/LOGO0.CZ0").expect("Error, could not open image");
+    let cz0_file = Cz0Image::decode(&input).unwrap();
+    println!("{:#?}", cz0_file.header());
+
+    cz0_file.save_as_png("test.png")
 }
