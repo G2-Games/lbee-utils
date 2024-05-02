@@ -13,3 +13,5 @@ Cargo.lock
 *.cz*
 *.CZ*
 *.png
+
+test_files/*

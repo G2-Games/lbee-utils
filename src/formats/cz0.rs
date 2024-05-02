@@ -75,7 +75,7 @@ impl CzHeader for Cz0Header {
         self.common.height
     }
 
-    fn depth(&self) -> u8 {
+    fn depth(&self) -> u16 {
         self.common.depth
     }
 }
@@ -88,7 +88,7 @@ impl CzImage for Cz0Image {
         let header = Cz0Header::new(bytes)?;
 
         // Get the rest of the file, which is the bitmap
-        let bitmap = bytes[header.header_length() as usize..].to_vec();
+        let bitmap = bytes[header.header_length()..].to_vec();
 
         Ok(Self {
             header,
