@@ -1,5 +1,6 @@
 use std::io::Cursor;
 
+use byteorder::{LittleEndian, ReadBytesExt};
 use image::ImageFormat;
 
 use crate::cz_common::{decompress, parse_chunk_info, CommonHeader, CzError, CzHeader, CzImage};
@@ -29,29 +30,39 @@ pub struct Cz3Header {
 }
 
 impl CzHeader for Cz3Header {
-    fn new(bytes: &[u8]) -> Result<Self, CzError> where Self: Sized {
-        let mut input = Cursor::new(bytes);
-        let common = CommonHeader::new(&mut input)?;
+    fn new(bytes: &mut Cursor<&[u8]>) -> Result<Self, CzError>
+    where
+        Self: Sized,
+    {
+        let common = CommonHeader::new(bytes)?;
 
-        if common.version != 3 {
-            return Err(CzError::VersionMismatch)
+        if common.version() != 3 {
+            return Err(CzError::VersionMismatch);
         }
+
+        let _unknown = bytes.read_u48::<LittleEndian>()?;
+
+        let crop_width = bytes.read_u16::<LittleEndian>()?;
+        let crop_height = bytes.read_u16::<LittleEndian>()?;
+
+        let bounds_width = bytes.read_u16::<LittleEndian>()?;
+        let bounds_height = bytes.read_u16::<LittleEndian>()?;
 
         let mut offset_width = None;
         let mut offset_height = None;
-        if common.length > 28 {
-            offset_width = Some(u16::from_le_bytes(bytes[28..30].try_into().unwrap()));
-            offset_height = Some(u16::from_le_bytes(bytes[30..32].try_into().unwrap()));
+        if common.header_length() > 28 {
+            offset_width = Some(bytes.read_u16::<LittleEndian>()?);
+            offset_height = Some(bytes.read_u16::<LittleEndian>()?);
         }
 
         Ok(Self {
             common,
 
-            crop_width: u16::from_le_bytes(bytes[20..22].try_into().unwrap()),
-            crop_height: u16::from_le_bytes(bytes[22..24].try_into().unwrap()),
+            crop_width,
+            crop_height,
 
-            bounds_width: u16::from_le_bytes(bytes[24..26].try_into().unwrap()),
-            bounds_height: u16::from_le_bytes(bytes[26..28].try_into().unwrap()),
+            bounds_width,
+            bounds_height,
 
             offset_width,
             offset_height,
@@ -59,23 +70,23 @@ impl CzHeader for Cz3Header {
     }
 
     fn version(&self) -> u8 {
-        self.common.version
+        self.common.version()
     }
 
     fn header_length(&self) -> usize {
-        self.common.length as usize
+        self.common.header_length()
     }
 
     fn width(&self) -> u16 {
-        self.common.width
+        self.common.width()
     }
 
     fn height(&self) -> u16 {
-        self.common.height
+        self.common.height()
     }
 
     fn depth(&self) -> u16 {
-        self.common.depth
+        self.common.depth()
     }
 }
 
@@ -90,14 +101,12 @@ impl CzImage for Cz3Image {
 
     fn decode(bytes: &[u8]) -> Result<Self, CzError> {
         let mut input = Cursor::new(bytes);
-        let header = Cz3Header::new(bytes)?;
+        let header = Cz3Header::new(&mut input)?;
         input.set_position(header.header_length() as u64);
 
         let block_info = parse_chunk_info(&mut input)?;
 
         let mut bitmap = decompress(&mut input, block_info)?;
-
-        dbg!(bitmap.len());
 
         let stride = (header.width() * (header.depth() / 8)) as usize;
         let third = ((header.height() + 2) / 3) as usize;
@@ -110,20 +119,16 @@ impl CzImage for Cz3Image {
             }
         }
 
-        dbg!(bitmap.len());
-
-        Ok(Self {
-            header,
-            bitmap
-        })
+        Ok(Self { header, bitmap })
     }
 
     fn save_as_png(&self, name: &str) {
         let img = image::RgbaImage::from_raw(
             self.header.width() as u32,
             self.header.height() as u32,
-            self.bitmap.clone()
-        ).unwrap();
+            self.bitmap.clone(),
+        )
+        .unwrap();
 
         img.save_with_format(name, ImageFormat::Png).unwrap();
     }

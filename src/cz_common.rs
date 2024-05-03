@@ -1,6 +1,9 @@
 //! Shared types and traits between CZ# files
 
-use std::io::{self, Cursor, Read};
+use std::{
+    collections::HashMap,
+    io::{self, Cursor, Read},
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use image::Rgba;
@@ -11,15 +14,21 @@ pub enum CzError {
     #[error("Version in header does not match expected version")]
     VersionMismatch,
 
-    #[error("Format of supplied file is incorrect; expected {} bytes, got {}", expected, got)]
-    InvalidFormat{expected: usize, got: usize},
+    #[error(
+        "Format of supplied file is incorrect; expected {} bytes, got {}",
+        expected,
+        got
+    )]
+    InvalidFormat { expected: usize, got: usize },
 
     #[error("Failed to read input")]
     ReadError(#[from] io::Error),
 }
 
 pub trait CzHeader {
-    fn new(bytes: &[u8]) -> Result<Self, CzError> where Self: Sized;
+    fn new(bytes: &mut Cursor<&[u8]>) -> Result<Self, CzError>
+    where
+        Self: Sized;
 
     fn version(&self) -> u8;
 
@@ -36,23 +45,26 @@ pub trait CzHeader {
 #[derive(Debug, Clone, Copy)]
 pub struct CommonHeader {
     /// Format version from the magic bytes, (eg. CZ3, CZ4)
-    pub version: u8,
+    version: u8,
 
     /// Length of the header in bytes
-    pub length: u32,
+    length: u32,
 
     /// Width of the image in pixels
-    pub width: u16,
+    width: u16,
 
     /// Height of the image in pixels
-    pub height: u16,
+    height: u16,
 
     /// Bit depth in Bits Per Pixel (BPP)
-    pub depth: u16,
+    depth: u16,
 }
 
-impl CommonHeader {
-    pub fn new(bytes: &mut Cursor<&[u8]>) -> Result<Self, io::Error> {
+impl CzHeader for CommonHeader {
+    fn new(bytes: &mut Cursor<&[u8]>) -> Result<Self, CzError>
+    where
+        Self: Sized,
+    {
         let mut magic = [0u8; 4];
         bytes.read_exact(&mut magic)?;
 
@@ -64,13 +76,35 @@ impl CommonHeader {
             depth: bytes.read_u16::<LittleEndian>()?,
         })
     }
+
+    fn version(&self) -> u8 {
+        self.version
+    }
+
+    fn header_length(&self) -> usize {
+        self.length as usize
+    }
+
+    fn width(&self) -> u16 {
+        self.width
+    }
+
+    fn height(&self) -> u16 {
+        self.height
+    }
+
+    fn depth(&self) -> u16 {
+        self.depth
+    }
 }
 
 pub trait CzImage {
     type Header;
 
     /// Create a [CZImage] from bytes
-    fn decode(bytes: &[u8]) -> Result<Self, CzError> where Self: Sized;
+    fn decode(bytes: &[u8]) -> Result<Self, CzError>
+    where
+        Self: Sized;
 
     /// Save the image as a PNG
     fn save_as_png(&self, name: &str);
@@ -82,7 +116,10 @@ pub trait CzImage {
     fn into_bitmap(self) -> Vec<u8>;
 }
 
-pub fn parse_colormap(input: &mut Cursor<&[u8]>, num_colors: usize) -> Result<Vec<Rgba<u8>>, CzError> {
+pub fn parse_colormap(
+    input: &mut Cursor<&[u8]>,
+    num_colors: usize,
+) -> Result<Vec<Rgba<u8>>, CzError> {
     let mut colormap = Vec::with_capacity(num_colors);
     let mut rgba_buf = [0u8; 4];
 
@@ -94,11 +131,13 @@ pub fn parse_colormap(input: &mut Cursor<&[u8]>, num_colors: usize) -> Result<Ve
     Ok(colormap)
 }
 
+#[derive(Debug)]
 pub struct ChunkInfo {
     pub size_compressed: usize,
     pub size_raw: usize,
 }
 
+#[derive(Debug)]
 pub struct CompressionInfo {
     pub chunk_count: usize,
     pub total_size_compressed: usize,
@@ -112,8 +151,8 @@ pub struct CompressionInfo {
 /// Get info about the compression chunks
 pub fn parse_chunk_info(bytes: &mut Cursor<&[u8]>) -> Result<CompressionInfo, CzError> {
     let parts_count = bytes.read_u32::<LittleEndian>()?;
-
     dbg!(parts_count);
+
     let mut part_sizes = vec![];
     let mut total_size = 0;
     let mut total_size_raw = 0;
@@ -131,6 +170,8 @@ pub fn parse_chunk_info(bytes: &mut Cursor<&[u8]>) -> Result<CompressionInfo, Cz
         });
     }
 
+    dbg!(&part_sizes);
+
     Ok(CompressionInfo {
         chunk_count: parts_count as usize,
         total_size_compressed: total_size as usize,
@@ -140,8 +181,11 @@ pub fn parse_chunk_info(bytes: &mut Cursor<&[u8]>) -> Result<CompressionInfo, Cz
     })
 }
 
-
-pub fn decompress(input: &mut Cursor<&[u8]>, chunk_info: CompressionInfo) -> Result<Vec<u8>, CzError> {
+/// Decompress an LZW compressed stream, like CZ1
+pub fn decompress(
+    input: &mut Cursor<&[u8]>,
+    chunk_info: CompressionInfo,
+) -> Result<Vec<u8>, CzError> {
     let mut m_dst = 0;
     let mut bitmap = vec![0; chunk_info.total_size_raw];
     for chunk in chunk_info.chunks {
