@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use crate::cz_common::{CommonHeader, CzError, CzHeader, CzImage};
 
 #[derive(Debug)]
@@ -32,7 +34,8 @@ pub struct Cz0Image {
 
 impl CzHeader for Cz0Header {
     fn new(bytes: &[u8]) -> Result<Self, CzError> {
-        let common = CommonHeader::new(bytes);
+        let mut input = Cursor::new(bytes);
+        let common = CommonHeader::new(&mut input)?;
 
         if common.version != 0 {
             return Err(CzError::VersionMismatch)
@@ -40,7 +43,7 @@ impl CzHeader for Cz0Header {
 
         let mut offset_width = None;
         let mut offset_height = None;
-        if common.length < 28 {
+        if common.length > 28 {
             offset_width = Some(u16::from_le_bytes(bytes[28..30].try_into().unwrap()));
             offset_height = Some(u16::from_le_bytes(bytes[30..32].try_into().unwrap()));
         }
