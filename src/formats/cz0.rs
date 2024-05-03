@@ -110,7 +110,7 @@ impl CzImage for Cz0Image {
         &self.header
     }
 
-    fn raw_bitmap(&self) -> &Vec<u8> {
-        &self.bitmap
+    fn into_bitmap(self) -> Vec<u8> {
+        self.bitmap
     }
 }

@@ -1,5 +1,6 @@
 //! Shared types and traits between CZ# files
 
+use image::Rgba;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -26,7 +27,7 @@ pub trait CzHeader {
 }
 
 /// The common first part of a header of a CZ# file
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct CommonHeader {
     /// Format version from the magic bytes, (eg. CZ3, CZ4)
     pub version: u8,
@@ -69,17 +70,17 @@ pub trait CzImage {
     fn header(&self) -> &Self::Header;
 
     /// Get the raw underlying bitmap for an image
-    fn raw_bitmap(&self) -> &Vec<u8>;
+    fn into_bitmap(self) -> Vec<u8>;
 }
 
-pub fn parse_colormap(input: &[u8], num_colors: usize) -> (Vec<[u8; 4]>, usize) {
+pub fn parse_colormap(input: &[u8], num_colors: usize) -> Vec<Rgba<u8>> {
     let mut colormap = Vec::with_capacity(num_colors);
 
     let input_iter = input.windows(4).step_by(4).take(num_colors);
 
     for color in input_iter {
-        colormap.push(color.try_into().unwrap());
+        colormap.push(Rgba(color.try_into().unwrap()));
     }
 
-    (colormap, num_colors * 4)
+    colormap
 }
