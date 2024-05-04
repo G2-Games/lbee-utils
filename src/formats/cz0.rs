@@ -1,4 +1,4 @@
-use std::io::{Cursor, Read};
+use std::io::{self, Cursor, Read};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -45,7 +45,8 @@ impl CzHeader for Cz0Header {
             return Err(CzError::VersionMismatch);
         }
 
-        let _unknown = bytes.read_u48::<LittleEndian>()?;
+        let _unknown = bytes.read_u32::<LittleEndian>()?;
+        let _unknown = bytes.read_u8()?;
 
         let crop_width = bytes.read_u16::<LittleEndian>()?;
         let crop_height = bytes.read_u16::<LittleEndian>()?;
@@ -105,28 +106,58 @@ impl CzImage for Cz0Image {
         let header = Cz0Header::new(&mut input)?;
 
         // Get the rest of the file, which is the bitmap
-        let mut bitmap = vec![];
-        input.read_to_end(&mut bitmap)?;
+        let mut bitmap = vec![0u8; bytes.len() - header.header_length()];
+        input.read_exact(&mut bitmap)?;
 
         Ok(Self { header, bitmap })
     }
 
-    fn save_as_png(&self, name: &str) {
-        image::save_buffer(
+    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
+        Ok(image::save_buffer(
             name,
             &self.bitmap,
             self.header.width() as u32,
             self.header.height() as u32,
             image::ExtendedColorType::Rgba8,
-        )
-        .unwrap()
+        )?)
     }
 
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
+    fn set_header(&mut self, header: Self::Header) {
+        self.header = header
+    }
+
     fn into_bitmap(self) -> Vec<u8> {
         self.bitmap
+    }
+
+    fn save_as_cz(&self) -> Result<(), CzError> {
+        todo!()
+    }
+
+    fn set_bitmap(&mut self, bitmap: Vec<u8>, header: Self::Header) {
+        self.bitmap = bitmap;
+
+        self.header = header;
+    }
+}
+
+impl TryFrom<&[u8]> for Cz0Image {
+    type Error = CzError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let mut input = Cursor::new(value);
+
+        // Get the header from the input
+        let header = Cz0Header::new(&mut input)?;
+
+        // Get the rest of the file, which is the bitmap
+        let mut bitmap = vec![];
+        input.read_to_end(&mut bitmap)?;
+
+        Ok(Self { header, bitmap })
     }
 }

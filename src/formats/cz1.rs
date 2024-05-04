@@ -51,23 +51,37 @@ impl CzImage for Cz1Image {
         Ok(image)
     }
 
-    fn save_as_png(&self, name: &str) {
+    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
         let img = image::RgbaImage::from_raw(
             self.header.width() as u32,
             self.header.height() as u32,
             self.bitmap.clone(),
         )
-        .unwrap();
+        .expect("Creating image failed");
 
-        img.save_with_format(name, ImageFormat::Png).unwrap();
+        img.save_with_format(name, ImageFormat::Png)?;
+
+        Ok(())
     }
 
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
+    fn set_header(&mut self, header: Self::Header) {
+        self.header = header
+    }
+
     fn into_bitmap(self) -> Vec<u8> {
         self.bitmap
+    }
+
+    fn save_as_cz(&self) -> Result<(), CzError> {
+        todo!()
+    }
+
+    fn set_bitmap(&mut self, bitmap: Vec<u8>, header: Self::Header) {
+        todo!()
     }
 }
 

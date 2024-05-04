@@ -58,6 +58,8 @@ pub struct CommonHeader {
 
     /// Bit depth in Bits Per Pixel (BPP)
     depth: u16,
+
+    color_block: u8,
 }
 
 impl CzHeader for CommonHeader {
@@ -74,6 +76,7 @@ impl CzHeader for CommonHeader {
             width: bytes.read_u16::<LittleEndian>()?,
             height: bytes.read_u16::<LittleEndian>()?,
             depth: bytes.read_u16::<LittleEndian>()?,
+            color_block: bytes.read_u8()?,
         })
     }
 
@@ -107,13 +110,22 @@ pub trait CzImage {
         Self: Sized;
 
     /// Save the image as a PNG
-    fn save_as_png(&self, name: &str);
+    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError>;
+
+    /// Save the image as its corresponding CZ# type
+    fn save_as_cz(&self) -> Result<(), CzError>;
 
     /// Get the header for metadata
     fn header(&self) -> &Self::Header;
 
+    /// Set the header with its metadata
+    fn set_header(&mut self, header: Self::Header);
+
     /// Get the raw underlying bitmap for an image
     fn into_bitmap(self) -> Vec<u8>;
+
+    /// Set the bitmap the image contains
+    fn set_bitmap(&mut self, bitmap: Vec<u8>, header: Self::Header);
 }
 
 pub fn parse_colormap(
