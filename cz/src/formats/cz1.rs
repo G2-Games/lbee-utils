@@ -1,6 +1,10 @@
 use byteorder::ReadBytesExt;
 use image::{ImageFormat, Rgba};
-use std::{fs::File, io::{BufWriter, Cursor, Read, Seek, SeekFrom, Write}, path::PathBuf};
+use std::{
+    fs::File,
+    io::{BufWriter, Read, Seek, SeekFrom, Write},
+    path::PathBuf
+};
 
 use crate::compression::{decompress, parse_chunk_info};
 use crate::common::{apply_palette, parse_colormap, CommonHeader, CzError, CzHeader, CzImage};
@@ -19,7 +23,7 @@ impl CzImage for Cz1Image {
     fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError> {
         // Get the header from the input
         let header = CommonHeader::new(bytes).unwrap();
-        bytes.seek(SeekFrom::Start(header.length() as u64));
+        bytes.seek(SeekFrom::Start(header.length() as u64))?;
 
         if header.version() != 1 {
             return Err(CzError::VersionMismatch)
@@ -32,15 +36,6 @@ impl CzImage for Cz1Image {
         }
 
         let chunk_info = parse_chunk_info(bytes)?;
-
-        /*
-        if chunk_info.total_size_compressed as usize > bytes. {
-            return Err(CzError::InvalidFormat {
-                expected: chunk_info.total_size_compressed,
-                got: bytes.len(),
-            });
-        }
-        */
 
         let mut bitmap = decompress(bytes, &chunk_info).unwrap();
         let mut raw_bitmap = None;
@@ -92,8 +87,9 @@ impl CzImage for Cz1Image {
 
         output_file.write_all(&self.header.to_bytes()?)?;
 
-        output_file.flush()?;
 
+
+        output_file.flush()?;
         Ok(())
     }
 
