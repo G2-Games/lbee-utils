@@ -1,7 +1,7 @@
 //! Shared types and traits between CZ# files
 
 use std::{
-    io::{self, Cursor, Read, Seek, Write}, path::PathBuf
+    io::{self, Read, Seek, Write}, path::PathBuf
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -133,7 +133,7 @@ impl CzHeader for CommonHeader {
 pub trait CzImage {
     type Header;
 
-    /// Create a [CZImage] from bytes
+    /// Create a [crate::CzImage] from bytes
     fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized;

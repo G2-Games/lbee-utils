@@ -2,6 +2,10 @@
 name = "cz"
 version = "0.1.0"
 edition = "2021"
+description="""
+A encoder/decoder for CZ# image files used in
+[RealLive Engine](https://www.pcgamingwiki.com/wiki/Engine:RealLive).
+"""
 
 [dependencies]
 image = "0.25"

@@ -1,5 +1,12 @@
 [workspace]
-
+resolver = "2"
 members = [
     "cz",
+    "utils",
 ]
+
+[workspace.package]
+authors = ["G2"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
