@@ -1,12 +1,14 @@
-use crate::cz_common::{
-    decompress, parse_chunk_info, parse_colormap, CommonHeader, CzError, CzHeader, CzImage,
-};
+use byteorder::ReadBytesExt;
 use image::{ImageFormat, Rgba};
-use std::io::Cursor;
+use std::{fs::File, io::{BufWriter, Cursor, Read, Seek, SeekFrom, Write}, path::PathBuf};
+
+use crate::compression::{decompress, parse_chunk_info};
+use crate::common::{apply_palette, parse_colormap, CommonHeader, CzError, CzHeader, CzImage};
 
 #[derive(Debug, Clone)]
 pub struct Cz1Image {
     header: CommonHeader,
+    raw_bitmap: Option<Vec<u8>>,
     bitmap: Vec<u8>,
     palette: Vec<Rgba<u8>>,
 }
@@ -14,37 +16,48 @@ pub struct Cz1Image {
 impl CzImage for Cz1Image {
     type Header = CommonHeader;
 
-    fn decode(bytes: &[u8]) -> Result<Self, CzError> {
-        let mut input = Cursor::new(bytes);
-
+    fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError> {
         // Get the header from the input
-        let header = CommonHeader::new(&mut input).unwrap();
+        let header = CommonHeader::new(bytes).unwrap();
+        bytes.seek(SeekFrom::Start(header.length() as u64));
+
+        if header.version() != 1 {
+            return Err(CzError::VersionMismatch)
+        }
 
         // The color palette, gotten for 8 and 4 BPP images
         let mut palette = None;
         if header.depth() == 8 || header.depth() == 4 {
-            palette = Some(parse_colormap(&mut input, 1 << header.depth())?);
+            palette = Some(parse_colormap(bytes, 1 << header.depth())?);
         }
 
-        let chunk_info = parse_chunk_info(&mut input)?;
+        let chunk_info = parse_chunk_info(bytes)?;
 
-        if chunk_info.total_size_compressed as usize > bytes.len() {
+        /*
+        if chunk_info.total_size_compressed as usize > bytes. {
             return Err(CzError::InvalidFormat {
                 expected: chunk_info.total_size_compressed,
                 got: bytes.len(),
             });
         }
+        */
 
-        let mut bitmap = decompress(&mut input, chunk_info).unwrap();
+        let mut bitmap = decompress(bytes, &chunk_info).unwrap();
+        let mut raw_bitmap = None;
 
         // Apply the palette if it exists
         if let Some(pal) = &palette {
-            apply_palette(&mut bitmap, pal);
+            if let Some(raw) = &mut raw_bitmap {
+                bitmap.clone_into(raw);
+            }
+
+            bitmap = apply_palette(&mut bitmap, pal);
         }
 
         let image = Self {
             header,
             bitmap,
+            raw_bitmap,
             palette: palette.unwrap(),
         };
 
@@ -52,16 +65,14 @@ impl CzImage for Cz1Image {
     }
 
     fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        let img = image::RgbaImage::from_raw(
+        image::save_buffer_with_format(
+            name,
+            &self.bitmap,
             self.header.width() as u32,
             self.header.height() as u32,
-            self.bitmap.clone(),
+            image::ExtendedColorType::Rgba8,
+            ImageFormat::Png
         )
-        .expect("Creating image failed");
-
-        img.save_with_format(name, ImageFormat::Png)?;
-
-        Ok(())
     }
 
     fn header(&self) -> &Self::Header {
@@ -76,22 +87,17 @@ impl CzImage for Cz1Image {
         self.bitmap
     }
 
-    fn save_as_cz(&self) -> Result<(), CzError> {
+    fn save_as_cz<T: Into<PathBuf>>(&self, path: T) -> Result<(), CzError> {
+        let mut output_file = BufWriter::new(File::create(path.into())?);
+
+        output_file.write_all(&self.header.to_bytes()?)?;
+
+        output_file.flush()?;
+
+        Ok(())
+    }
+
+    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
         todo!()
     }
-
-    fn set_bitmap(&mut self, bitmap: Vec<u8>, header: Self::Header) {
-        todo!()
-    }
-}
-
-fn apply_palette(input: &mut Vec<u8>, palette: &[Rgba<u8>]) {
-    let mut output_map = Vec::new();
-
-    for byte in input.iter() {
-        let color = palette[*byte as usize].0;
-        output_map.extend_from_slice(&color);
-    }
-
-    *input = output_map
 }

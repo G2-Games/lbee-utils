@@ -1,9 +1,9 @@
-use std::io::Cursor;
+use std::{io::{self, Cursor, Read, Seek, SeekFrom}, path::PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use image::ImageFormat;
 
-use crate::cz_common::{decompress, parse_chunk_info, CommonHeader, CzError, CzHeader, CzImage};
+use crate::compression::{decompress, parse_chunk_info};
+use crate::common::{CommonHeader, CzError, CzHeader, CzImage};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cz3Header {
@@ -30,7 +30,7 @@ pub struct Cz3Header {
 }
 
 impl CzHeader for Cz3Header {
-    fn new(bytes: &mut Cursor<&[u8]>) -> Result<Self, CzError>
+    fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized,
     {
@@ -40,7 +40,8 @@ impl CzHeader for Cz3Header {
             return Err(CzError::VersionMismatch);
         }
 
-        let _unknown = bytes.read_u48::<LittleEndian>()?;
+        let mut unknown_1 = [0u8; 5];
+        bytes.read_exact(&mut unknown_1)?;
 
         let crop_width = bytes.read_u16::<LittleEndian>()?;
         let crop_height = bytes.read_u16::<LittleEndian>()?;
@@ -50,7 +51,7 @@ impl CzHeader for Cz3Header {
 
         let mut offset_width = None;
         let mut offset_height = None;
-        if common.header_length() > 28 {
+        if common.length() > 28 {
             offset_width = Some(bytes.read_u16::<LittleEndian>()?);
             offset_height = Some(bytes.read_u16::<LittleEndian>()?);
         }
@@ -73,8 +74,8 @@ impl CzHeader for Cz3Header {
         self.common.version()
     }
 
-    fn header_length(&self) -> usize {
-        self.common.header_length()
+    fn length(&self) -> usize {
+        self.common.length()
     }
 
     fn width(&self) -> u16 {
@@ -88,6 +89,14 @@ impl CzHeader for Cz3Header {
     fn depth(&self) -> u16 {
         self.common.depth()
     }
+
+    fn color_block(&self) -> u8 {
+        self.common.color_block()
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>, io::Error> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -99,14 +108,13 @@ pub struct Cz3Image {
 impl CzImage for Cz3Image {
     type Header = Cz3Header;
 
-    fn decode(bytes: &[u8]) -> Result<Self, CzError> {
-        let mut input = Cursor::new(bytes);
-        let header = Cz3Header::new(&mut input)?;
-        input.set_position(header.header_length() as u64);
+    fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError> {
+        let header = Cz3Header::new(bytes)?;
+        bytes.seek(SeekFrom::Start(header.length() as u64));
 
-        let block_info = parse_chunk_info(&mut input)?;
+        let block_info = parse_chunk_info(bytes)?;
 
-        let mut bitmap = decompress(&mut input, block_info)?;
+        let mut bitmap = decompress(bytes, &block_info)?;
 
         let stride = (header.width() * (header.depth() / 8)) as usize;
         let third = ((header.height() + 2) / 3) as usize;
@@ -123,16 +131,13 @@ impl CzImage for Cz3Image {
     }
 
     fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        let img = image::RgbaImage::from_raw(
+        image::save_buffer(
+            name,
+            &self.bitmap,
             self.header.width() as u32,
             self.header.height() as u32,
-            self.bitmap.clone(),
+            image::ExtendedColorType::Rgba8,
         )
-        .expect("Creating image failed");
-
-        img.save_with_format(name, ImageFormat::Png)?;
-
-        Ok(())
     }
 
     fn header(&self) -> &Self::Header {
@@ -147,11 +152,11 @@ impl CzImage for Cz3Image {
         self.bitmap
     }
 
-    fn save_as_cz(&self) -> Result<(), CzError> {
+    fn save_as_cz<T: Into<PathBuf>>(&self, path: T) -> Result<(), CzError> {
         todo!()
     }
 
-    fn set_bitmap(&mut self, bitmap: Vec<u8>, header: Self::Header) {
+    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
         todo!()
     }
 }
