@@ -1,6 +1,13 @@
 # lbee-utils
 A small collection of utilities for exporting and importing assets from Little Busters! English Edition
 
+## Acknowledgments
+The implementations for compression and decompression of CZ1 and CZ3 were
+derived from [GARbro](https://github.com/morkt/GARbro/). The implementation
+of compression and decompression for CZ2 were derived from the implementation
+in [LuckSystem](https://github.com/wetor/LuckSystem). This project would not
+have been possible without their amazing work.
+
 ## Specifications and Info
 <sup>Bytes are in Little Endian</sup>
 
