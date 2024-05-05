@@ -11,14 +11,10 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum CzError {
     #[error("Version in header does not match expected version")]
-    VersionMismatch,
+    VersionMismatch(u8, u8),
 
-    #[error(
-        "Format of supplied file is incorrect; expected {} bytes, got {}",
-        expected,
-        got
-    )]
-    InvalidFormat { expected: usize, got: usize },
+    #[error("Format of supplied file is not a CZ#")]
+    InvalidFormat,
 
     #[error("Failed to read/write input/output")]
     IoError(#[from] io::Error),
@@ -80,6 +76,10 @@ impl CzHeader for CommonHeader {
     {
         let mut magic = [0u8; 4];
         bytes.read_exact(&mut magic)?;
+
+        if magic[0..2] != [b'C', b'Z'] {
+            return Err(CzError::InvalidFormat)
+        }
 
         Ok(Self {
             version: magic[2] - b'0',

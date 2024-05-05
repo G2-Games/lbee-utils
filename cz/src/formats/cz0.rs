@@ -47,7 +47,7 @@ impl CzHeader for Cz0Header {
         let common = CommonHeader::new(bytes)?;
 
         if common.version() != 0 {
-            return Err(CzError::VersionMismatch);
+            return Err(CzError::VersionMismatch(common.version(), 0));
         }
 
         let mut unknown_1 = [0u8; 5];

@@ -26,7 +26,7 @@ impl CzImage for Cz1Image {
         bytes.seek(SeekFrom::Start(header.length() as u64))?;
 
         if header.version() != 1 {
-            return Err(CzError::VersionMismatch)
+            return Err(CzError::VersionMismatch(header.version(), 1));
         }
 
         // The color palette, gotten for 8 and 4 BPP images

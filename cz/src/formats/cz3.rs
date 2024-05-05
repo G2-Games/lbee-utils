@@ -1,4 +1,7 @@
-use std::{io::{self, Cursor, Read, Seek, SeekFrom}, path::PathBuf};
+use std::{
+    io::{self, Read, Seek, SeekFrom},
+    path::PathBuf
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -37,7 +40,7 @@ impl CzHeader for Cz3Header {
         let common = CommonHeader::new(bytes)?;
 
         if common.version() != 3 {
-            return Err(CzError::VersionMismatch);
+            return Err(CzError::VersionMismatch(common.version(), 3));
         }
 
         let mut unknown_1 = [0u8; 5];
