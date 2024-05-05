@@ -4,16 +4,16 @@ A small collection of utilities for exporting and importing assets from Little B
 ## Acknowledgments
 The implementations for compression and decompression of CZ1 and CZ3 were
 derived from [GARbro](https://github.com/morkt/GARbro/). The implementation
-of compression and decompression for CZ2 were derived from the implementation
+of compression and decompression for CZ2 was derived from the implementation
 in [LuckSystem](https://github.com/wetor/LuckSystem). This project would not
 have been possible without their amazing work.
 
 ## Specifications and Info
-<sup>Bytes are in Little Endian</sup>
+Each `CZ#` file starts with a header. The first 14 (`0x0E`) bytes of the header 
+are common to all `CZ#` files. The data which come after that are specific
+to each format, although several `CZ#` formats do share the same layout.
 
-Each `CZ#` file starts with a header. The first 14 (`0x0E`) bytes of the header are common to all
-`CZ#` files. The data which come after that are specific to each format, although several
-`CZ#` formats do share the same layout.
+All byte layouts are in Little Endian.
 
 ### Common header:
 | Offset      | Ex. Values  | ASCII | Purpose                           |
