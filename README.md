@@ -1,7 +1,12 @@
 # lbee-utils
 A small collection of utilities for exporting and importing assets from Little Busters! English Edition
 
-The CZ0 header:
+## Specifications and Info
+<sup>Bytes are in Little Endian</sup>
+
+Each CZ file starts with a header.
+
+### The CZ0 and CZ3 header:
 | Offset      | Ex. Values  | ASCII | Purpose                           |
 |-------------|-------------|-------|-----------------------------------|
 | 0x00 - 0x03 | 43 5A 30 00 | CZ0   | Magic bytes                       |
@@ -15,8 +20,16 @@ The CZ0 header:
 | 0x16 - 0x17 | DC 02       | 732   | Height of image crop              |
 | 0x18 - 0x19 | 00 05       | 1280  | Width of image bounding box       |
 | 0x1A - 0x1B | 34 03       | 820   | Height of image bounding box      |
-| 0x1C - 0x1D | 80 02       | 640   | X offset of image                 |
-| 0x1E - 0x1F | 02 03       | 770   | Y offset of image                 |
-| 0x20 - 0x23 | ---         | ---   | ---[Unknown]---                   |
+| 0x1C - 0x1D | 80 02       | 640   | X offset of image, optional       |
+| 0x1E - 0x1F | 02 03       | 770   | Y offset of image, optional       |
+| 0x20 - 0x23 | ---         | ---   | ---[Unknown]---, optional         |
 
-<sup>Bytes are in Little Endian order</sup>
+### The CZ1 and CZ2 header:
+| Offset      | Ex. Values  | ASCII | Purpose                           |
+|-------------|-------------|-------|-----------------------------------|
+| 0x00 - 0x03 | 43 5A 30 00 | CZ0   | Magic bytes                       |
+| 0x04 - 0x07 | 24 00 00 00 | 36    | Header length in bytes            |
+| 0x08 - 0x09 | 58 01       | 344   | Width of the image in pixels      |
+| 0x0A - 0x0B | DC 02       | 732   | Height of the image in pixels     |
+| 0x0C - 0x0D | 20 00       | 32    | Bit depth of the image            |
+| 0x0E        | 03          | 3     | Color block                       |
