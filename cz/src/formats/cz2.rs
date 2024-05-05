@@ -119,7 +119,7 @@ impl CzImage for Cz2Image {
 
     fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
         let img = image::RgbaImage::from_raw(
-            self.header.width() as u32 - 1,
+            self.header.width() as u32,
             self.header.height() as u32,
             self.bitmap.clone(),
         ).unwrap();
