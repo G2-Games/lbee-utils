@@ -1,5 +1,4 @@
 use byteorder::ReadBytesExt;
-use image::{ImageFormat, Rgba};
 use std::{
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
@@ -14,7 +13,7 @@ pub struct Cz1Image {
     header: CommonHeader,
     raw_bitmap: Option<Vec<u8>>,
     bitmap: Vec<u8>,
-    palette: Vec<Rgba<u8>>,
+    palette: Vec<[u8; 4]>,
 }
 
 impl CzImage for Cz1Image {
@@ -26,7 +25,7 @@ impl CzImage for Cz1Image {
         bytes.seek(SeekFrom::Start(header.length() as u64))?;
 
         if header.version() != 1 {
-            return Err(CzError::VersionMismatch(header.version(), 1));
+            return Err(CzError::VersionMismatch(1, header.version()));
         }
 
         // The color palette, gotten for 8 and 4 BPP images
@@ -59,23 +58,16 @@ impl CzImage for Cz1Image {
         Ok(image)
     }
 
-    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        image::save_buffer_with_format(
-            name,
-            &self.bitmap,
-            self.header.width() as u32,
-            self.header.height() as u32,
-            image::ExtendedColorType::Rgba8,
-            ImageFormat::Png,
-        )
-    }
-
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
-    fn set_header(&mut self, header: Self::Header) {
-        self.header = header
+    fn set_header(&mut self, header:& Self::Header) {
+        self.header = *header
+    }
+
+    fn bitmap(&self) -> &Vec<u8> {
+        &self.bitmap
     }
 
     fn into_bitmap(self) -> Vec<u8> {

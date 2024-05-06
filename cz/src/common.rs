@@ -6,25 +6,33 @@ use std::{
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use image::Rgba;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum CzError {
-    #[error("Version in header does not match expected version")]
+    #[error("Expected CZ{}, got CZ{}", 0, 1)]
     VersionMismatch(u8, u8),
 
-    #[error("Format of supplied file is not a CZ#")]
-    InvalidFormat,
+    #[error("File data is incorrect, it might be corrupt")]
+    Corrupt,
+
+    #[error("File is not a CZ image")]
+    NotCzFile,
 
     #[error("Failed to read/write input/output")]
     IoError(#[from] io::Error),
+
+    #[error("Problem while decoding file")]
+    DecodeError,
 }
 
 pub trait CzHeader {
     fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized;
+
+    /// The [CommonHeader] header from the image
+    fn common(&self) -> &CommonHeader;
 
     /// Turn the header into bytes equivalent to the original header from the file
     fn to_bytes(&self) -> Result<Vec<u8>, io::Error>;
@@ -79,7 +87,7 @@ impl CzHeader for CommonHeader {
         bytes.read_exact(&mut magic)?;
 
         if magic[0..2] != [b'C', b'Z'] {
-            return Err(CzError::InvalidFormat);
+            return Err(CzError::NotCzFile);
         }
 
         Ok(Self {
@@ -90,6 +98,10 @@ impl CzHeader for CommonHeader {
             depth: bytes.read_u16::<LittleEndian>()?,
             color_block: bytes.read_u8()?,
         })
+    }
+
+    fn common(&self) -> &CommonHeader {
+        &self
     }
 
     fn version(&self) -> u8 {
@@ -139,9 +151,6 @@ pub trait CzImage {
     where
         Self: Sized;
 
-    /// Save the image as a PNG
-    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError>;
-
     /// Save the image as its corresponding CZ# type
     fn save_as_cz<T: Into<PathBuf>>(&self, path: T) -> Result<(), CzError>;
 
@@ -149,7 +158,9 @@ pub trait CzImage {
     fn header(&self) -> &Self::Header;
 
     /// Set the header with its metadata
-    fn set_header(&mut self, header: Self::Header);
+    fn set_header(&mut self, header: &Self::Header);
+
+    fn bitmap(&self) -> &Vec<u8>;
 
     /// Get the raw underlying bitmap for an image
     fn into_bitmap(self) -> Vec<u8>;
@@ -161,23 +172,23 @@ pub trait CzImage {
 pub fn parse_colormap<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     num_colors: usize,
-) -> Result<Vec<Rgba<u8>>, CzError> {
+) -> Result<Vec<[u8; 4]>, CzError> {
     let mut colormap = Vec::with_capacity(num_colors);
     let mut rgba_buf = [0u8; 4];
 
     for _ in 0..num_colors {
         input.read_exact(&mut rgba_buf)?;
-        colormap.push(Rgba(rgba_buf));
+        colormap.push(rgba_buf);
     }
 
     Ok(colormap)
 }
 
-pub fn apply_palette(input: &mut Vec<u8>, palette: &[Rgba<u8>]) -> Vec<u8> {
+pub fn apply_palette(input: &mut Vec<u8>, palette: &[[u8; 4]]) -> Vec<u8> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {
-        let color = palette[*byte as usize].0;
+        let color = palette[*byte as usize];
         output_map.extend_from_slice(&color);
     }
 

@@ -1,6 +1,8 @@
 mod binio;
-pub mod common;
 mod compression;
+
+pub mod dynamic;
+pub mod common;
 pub mod formats {
     pub mod cz0;
     pub mod cz1;

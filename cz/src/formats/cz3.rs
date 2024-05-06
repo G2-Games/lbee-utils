@@ -40,7 +40,7 @@ impl CzHeader for Cz3Header {
         let common = CommonHeader::new(bytes)?;
 
         if common.version() != 3 {
-            return Err(CzError::VersionMismatch(common.version(), 3));
+            return Err(CzError::VersionMismatch(3, common.version()));
         }
 
         let mut unknown_1 = [0u8; 5];
@@ -71,6 +71,10 @@ impl CzHeader for Cz3Header {
             offset_width,
             offset_height,
         })
+    }
+
+    fn common(&self) -> &CommonHeader {
+        &self.common
     }
 
     fn version(&self) -> u8 {
@@ -124,22 +128,16 @@ impl CzImage for Cz3Image {
         Ok(Self { header, bitmap })
     }
 
-    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        image::save_buffer(
-            name,
-            &self.bitmap,
-            self.header.width() as u32,
-            self.header.height() as u32,
-            image::ExtendedColorType::Rgba8,
-        )
-    }
-
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
-    fn set_header(&mut self, header: Self::Header) {
-        self.header = header
+    fn set_header(&mut self, header: &Self::Header) {
+        self.header = *header
+    }
+
+    fn bitmap(&self) -> &Vec<u8> {
+        &self.bitmap
     }
 
     fn into_bitmap(self) -> Vec<u8> {

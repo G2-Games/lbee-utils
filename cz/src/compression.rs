@@ -1,7 +1,4 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use image::{
-    buffer, ColorType, DynamicImage, GenericImage, GenericImageView, RgbImage, Rgba, RgbaImage,
-};
 use std::{
     collections::BTreeMap,
     io::{Read, Seek, Write},
@@ -218,7 +215,7 @@ pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
 
         if y % block_height as u32 != 0 {
             for x in 0..line_byte_count {
-                curr_line[x] += prev_line[x]
+                curr_line[x] = u8::wrapping_add(curr_line[x], prev_line[x])
             }
         }
 

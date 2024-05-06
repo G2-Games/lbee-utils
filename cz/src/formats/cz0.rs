@@ -94,6 +94,10 @@ impl CzHeader for Cz0Header {
         })
     }
 
+    fn common(&self) -> &CommonHeader {
+        &self.common
+    }
+
     fn version(&self) -> u8 {
         self.common.version()
     }
@@ -150,17 +154,13 @@ impl CzImage for Cz0Image {
         let mut bitmap = vec![];
         bytes.read_to_end(&mut bitmap)?;
 
-        Ok(Self { header, bitmap })
-    }
+        let bpp = (header.depth() >> 3) as usize;
 
-    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        image::save_buffer(
-            name,
-            &self.bitmap,
-            self.header.width() as u32,
-            self.header.height() as u32,
-            image::ExtendedColorType::Rgba8,
-        )
+        if bitmap.len() != (header.width() as usize * header.height() as usize) * bpp {
+            return Err(CzError::Corrupt)
+        }
+
+        Ok(Self { header, bitmap })
     }
 
     fn save_as_cz<T: Into<PathBuf>>(&self, path: T) -> Result<(), CzError> {
@@ -177,8 +177,12 @@ impl CzImage for Cz0Image {
         &self.header
     }
 
-    fn set_header(&mut self, header: Self::Header) {
-        self.header = header
+    fn set_header(&mut self, header: &Self::Header) {
+        self.header = *header
+    }
+
+    fn bitmap(&self) -> &Vec<u8> {
+        &self.bitmap
     }
 
     fn into_bitmap(self) -> Vec<u8> {

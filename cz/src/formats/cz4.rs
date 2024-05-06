@@ -2,12 +2,10 @@ use std::{
     io::{self, Read, Seek, SeekFrom},
     path::PathBuf,
 };
-
-use byteorder::{LittleEndian, ReadBytesExt};
-use image::DynamicImage;
+use byteorder::ReadBytesExt;
 
 use crate::common::{CommonHeader, CzError, CzHeader, CzImage};
-use crate::compression::{decompress, line_diff, line_diff_cz4, parse_chunk_info};
+use crate::compression::{decompress, line_diff_cz4, parse_chunk_info};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cz4Header {
@@ -23,10 +21,14 @@ impl CzHeader for Cz4Header {
         let common = CommonHeader::new(bytes)?;
 
         if common.version() != 4 {
-            return Err(CzError::VersionMismatch(common.version(), 3));
+            return Err(CzError::VersionMismatch(4, common.version()));
         }
 
         Ok(Self { common })
+    }
+
+    fn common(&self) -> &CommonHeader {
+        &self.common
     }
 
     fn version(&self) -> u8 {
@@ -81,25 +83,16 @@ impl CzImage for Cz4Image {
         Ok(Self { header, bitmap })
     }
 
-    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        let img = image::RgbaImage::from_raw(
-            self.header.width() as u32,
-            self.header.height() as u32,
-            self.bitmap.clone(),
-        )
-        .unwrap();
-
-        img.save(name)?;
-
-        Ok(())
-    }
-
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
-    fn set_header(&mut self, header: Self::Header) {
-        self.header = header
+    fn set_header(&mut self, header: &Self::Header) {
+        self.header = *header
+    }
+
+    fn bitmap(&self) -> &Vec<u8> {
+        &self.bitmap
     }
 
     fn into_bitmap(self) -> Vec<u8> {

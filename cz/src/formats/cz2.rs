@@ -1,5 +1,4 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
-use image::{ImageFormat, Rgba};
 use std::{
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
@@ -7,7 +6,7 @@ use std::{
 };
 
 use crate::common::{apply_palette, parse_colormap, CommonHeader, CzError, CzHeader, CzImage};
-use crate::compression::{decompress, decompress_2, parse_chunk_info};
+use crate::compression::{decompress_2, parse_chunk_info};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cz2Header {
@@ -25,7 +24,7 @@ impl CzHeader for Cz2Header {
         let common = CommonHeader::new(bytes)?;
 
         if common.version() != 2 {
-            return Err(CzError::VersionMismatch(common.version(), 2));
+            return Err(CzError::VersionMismatch(2, common.version()));
         }
 
         Ok(Self {
@@ -34,6 +33,10 @@ impl CzHeader for Cz2Header {
             unknown_2: bytes.read_u8()?,
             unknown_3: bytes.read_u8()?,
         })
+    }
+
+    fn common(&self) -> &CommonHeader {
+        &self.common
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, std::io::Error> {
@@ -76,7 +79,7 @@ impl CzHeader for Cz2Header {
 pub struct Cz2Image {
     header: Cz2Header,
     bitmap: Vec<u8>,
-    palette: Vec<Rgba<u8>>,
+    palette: Vec<[u8; 4]>,
 }
 
 impl CzImage for Cz2Image {
@@ -85,12 +88,6 @@ impl CzImage for Cz2Image {
     fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError> {
         let header = Cz2Header::new(bytes).unwrap();
         bytes.seek(SeekFrom::Start(header.length() as u64))?;
-
-        if header.version() != 2 {
-            return Err(CzError::VersionMismatch(header.version(), 2));
-        }
-
-        dbg!(header);
 
         // The color palette, gotten for 8 and 4 BPP images
         let mut palette = None;
@@ -117,25 +114,16 @@ impl CzImage for Cz2Image {
         Ok(image)
     }
 
-    fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        let img = image::RgbaImage::from_raw(
-            self.header.width() as u32,
-            self.header.height() as u32,
-            self.bitmap.clone(),
-        )
-        .unwrap();
-
-        img.save(name)?;
-
-        Ok(())
-    }
-
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
-    fn set_header(&mut self, header: Self::Header) {
-        self.header = header
+    fn set_header(&mut self, header: &Self::Header) {
+        self.header = *header
+    }
+
+    fn bitmap(&self) -> &Vec<u8> {
+        &self.bitmap
     }
 
     fn into_bitmap(self) -> Vec<u8> {
