@@ -1,8 +1,8 @@
-use std::{collections::BTreeMap, io::{Cursor, Read, Seek, Write}};
+use std::{collections::BTreeMap, io::{Read, Seek, Write}};
 use byteorder::{LittleEndian, ReadBytesExt};
-use bitstream_io::{read::BitReader, BitRead};
+use image::{buffer, ColorType, DynamicImage, GenericImage, GenericImageView, RgbImage, Rgba, RgbaImage};
 
-use crate::common::CzError;
+use crate::common::{CzError, CzHeader};
 use crate::binio::BitIO;
 
 #[derive(Debug, Clone, Copy)]
@@ -75,6 +75,8 @@ pub fn decompress<T: Seek + ReadBytesExt + Read>(
             }
         }
     }
+
+    bitmap.truncate(chunk_info.total_size_raw);
 
     Ok(bitmap)
 }
@@ -187,5 +189,95 @@ fn copy_one(input: &[u8], src: usize) -> u8 {
         0
     } else {
         copy_one(input, get_offset(input, src))
+    }
+}
+
+pub fn line_diff<T: CzHeader>(header_info: &T, data: &[u8]) -> Vec<u8> {
+    let width = header_info.width() as u32;
+    let height = header_info.height() as u32;
+    let mut pic = image::RgbaImage::new(width, height);
+
+    let block_height = (f32::ceil(height as f32 / 4 as f32) as u16) as usize;
+    let pixel_byte_count = header_info.depth() >> 3;
+    let line_byte_count = (width * pixel_byte_count as u32) as usize;
+
+    let mut curr_line: Vec<u8>;
+    let mut prev_line: Vec<u8> = Vec::with_capacity(line_byte_count);
+
+    let mut i = 0;
+    for y in 0..height {
+        curr_line = data[i..i+line_byte_count].to_vec();
+        dbg!(curr_line.len());
+
+        if y % block_height as u32 != 0 {
+            for x in 0..line_byte_count {
+                curr_line[x] += prev_line[x]
+            }
+        }
+
+        prev_line = curr_line.clone();
+        if header_info.version() == 4 {
+            for x in 0..width {
+                pic.get_pixel_mut(x as u32, y).0[3] = curr_line[x as usize];
+            }
+        } else if pixel_byte_count == 4 {
+            let mut raw = pic.into_raw();
+            raw[i..i+line_byte_count].copy_from_slice(&curr_line);
+
+            pic = RgbaImage::from_raw(width, height, raw).unwrap();
+        } else if pixel_byte_count == 3 {
+            for x in 0..line_byte_count {
+                pic.get_pixel_mut((x/3) as u32, y).0 = [curr_line[x], curr_line[x + 1], curr_line[x + 2], 0xFF];
+            }
+        }
+
+        i += line_byte_count;
+    }
+
+    pic.into_vec()
+}
+
+pub fn line_diff_cz4(picture: &mut RgbaImage, color_block: u8, pixel_byte_count: usize, data: &[u8]) {
+    let width = picture.width() as u32;
+    let height = picture.height() as u32;
+    let block_height = (f32::ceil(height as f32 / color_block as f32) as u16) as u32;
+
+
+    let mut curr_line = vec![0u8; width as usize * pixel_byte_count];
+    let mut prev_line = vec![0u8; width as usize * pixel_byte_count];
+
+    let mut i = 0;
+    for y in 0..height {
+        curr_line = data[i..i + width as usize * pixel_byte_count].to_vec();
+
+        if y % block_height != 0 {
+            for x in 0..(width as usize * pixel_byte_count) {
+                curr_line[x] += prev_line[x]
+            }
+        }
+
+
+        for x in 0..width as usize {
+            if pixel_byte_count == 1 {
+                picture.get_pixel_mut(x as u32, y).0[3] = curr_line[x];
+            } else if pixel_byte_count == 4 {
+                *picture.get_pixel_mut(x as u32, y) = Rgba([
+                    curr_line[x * pixel_byte_count + 0],
+                    curr_line[x * pixel_byte_count + 1],
+                    curr_line[x * pixel_byte_count + 2],
+                    curr_line[x * pixel_byte_count + 3]
+                ]);
+            } else if pixel_byte_count == 3 {
+                *picture.get_pixel_mut(x as u32, y) = Rgba([
+                    curr_line[x * pixel_byte_count + 0],
+                    curr_line[x * pixel_byte_count + 1],
+                    curr_line[x * pixel_byte_count + 2],
+                    0xFF
+                ]);
+            }
+        }
+
+        prev_line = curr_line.clone();
+        i += width as usize * pixel_byte_count;
     }
 }

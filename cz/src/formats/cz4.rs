@@ -4,72 +4,30 @@ use std::{
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use image::DynamicImage;
 
-use crate::compression::{decompress, line_diff, parse_chunk_info};
+use crate::compression::{decompress, line_diff, line_diff_cz4, parse_chunk_info};
 use crate::common::{CommonHeader, CzError, CzHeader, CzImage};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Cz3Header {
+pub struct Cz4Header {
     /// Common CZ# header
     common: CommonHeader,
-
-    /// Width of cropped image area
-    pub crop_width: u16,
-
-    /// Height of cropped image area
-    pub crop_height: u16,
-
-    /// Bounding box width
-    pub bounds_width: u16,
-
-    /// Bounding box height
-    pub bounds_height: u16,
-
-    /// Offset width
-    pub offset_width: Option<u16>,
-
-    /// Offset height
-    pub offset_height: Option<u16>,
 }
 
-impl CzHeader for Cz3Header {
+impl CzHeader for Cz4Header {
     fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized,
     {
         let common = CommonHeader::new(bytes)?;
 
-        if common.version() != 3 {
+        if common.version() != 4 {
             return Err(CzError::VersionMismatch(common.version(), 3));
-        }
-
-        let mut unknown_1 = [0u8; 5];
-        bytes.read_exact(&mut unknown_1)?;
-
-        let crop_width = bytes.read_u16::<LittleEndian>()?;
-        let crop_height = bytes.read_u16::<LittleEndian>()?;
-
-        let bounds_width = bytes.read_u16::<LittleEndian>()?;
-        let bounds_height = bytes.read_u16::<LittleEndian>()?;
-
-        let mut offset_width = None;
-        let mut offset_height = None;
-        if common.length() > 28 {
-            offset_width = Some(bytes.read_u16::<LittleEndian>()?);
-            offset_height = Some(bytes.read_u16::<LittleEndian>()?);
         }
 
         Ok(Self {
             common,
-
-            crop_width,
-            crop_height,
-
-            bounds_width,
-            bounds_height,
-
-            offset_width,
-            offset_height,
         })
     }
 
@@ -103,35 +61,44 @@ impl CzHeader for Cz3Header {
 }
 
 #[derive(Debug, Clone)]
-pub struct Cz3Image {
-    header: Cz3Header,
+pub struct Cz4Image {
+    header: Cz4Header,
     bitmap: Vec<u8>,
 }
 
-impl CzImage for Cz3Image {
-    type Header = Cz3Header;
+impl CzImage for Cz4Image {
+    type Header = Cz4Header;
 
     fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError> {
-        let header = Cz3Header::new(bytes)?;
+        let header = Cz4Header::new(bytes)?;
         bytes.seek(SeekFrom::Start(header.length() as u64))?;
 
         let block_info = parse_chunk_info(bytes)?;
+        bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
         let bitmap = decompress(bytes, &block_info)?;
 
-        let bitmap = line_diff(&header, &bitmap);
+        let mut picture = image::RgbaImage::new(header.width() as u32, header.height() as u32);
 
-        Ok(Self { header, bitmap })
+        let pixel_byte_count = 3;
+        line_diff_cz4(&mut picture, 3, pixel_byte_count, &bitmap);
+
+        Ok(Self {
+            header,
+            bitmap: picture.into_vec()
+        })
     }
 
     fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
-        image::save_buffer(
-            name,
-            &self.bitmap,
+        let img = image::RgbaImage::from_raw(
             self.header.width() as u32,
             self.header.height() as u32,
-            image::ExtendedColorType::Rgba8,
-        )
+            self.bitmap.clone(),
+        ).unwrap();
+
+        img.save(name)?;
+
+        Ok(())
     }
 
     fn header(&self) -> &Self::Header {

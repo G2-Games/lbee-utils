@@ -6,6 +6,7 @@ pub mod formats {
     pub mod cz1;
     pub mod cz2;
     pub mod cz3;
+    pub mod cz4;
 }
 
 #[doc(inline)]
@@ -16,6 +17,8 @@ pub use formats::cz1::Cz1Image;
 pub use formats::cz2::Cz2Image;
 #[doc(inline)]
 pub use formats::cz3::Cz3Image;
+#[doc(inline)]
+pub use formats::cz4::Cz4Image;
 
 /// Traits for CZ# images
 #[doc(inline)]
