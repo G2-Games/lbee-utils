@@ -1,7 +1,8 @@
 //! Shared types and traits between CZ# files
 
 use std::{
-    io::{self, Read, Seek, Write}, path::PathBuf
+    io::{self, Read, Seek, Write},
+    path::PathBuf,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -78,7 +79,7 @@ impl CzHeader for CommonHeader {
         bytes.read_exact(&mut magic)?;
 
         if magic[0..2] != [b'C', b'Z'] {
-            return Err(CzError::InvalidFormat)
+            return Err(CzError::InvalidFormat);
         }
 
         Ok(Self {

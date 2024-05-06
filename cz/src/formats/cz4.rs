@@ -1,13 +1,13 @@
 use std::{
     io::{self, Read, Seek, SeekFrom},
-    path::PathBuf
+    path::PathBuf,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use image::DynamicImage;
 
-use crate::compression::{decompress, line_diff, line_diff_cz4, parse_chunk_info};
 use crate::common::{CommonHeader, CzError, CzHeader, CzImage};
+use crate::compression::{decompress, line_diff, line_diff_cz4, parse_chunk_info};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cz4Header {
@@ -26,9 +26,7 @@ impl CzHeader for Cz4Header {
             return Err(CzError::VersionMismatch(common.version(), 3));
         }
 
-        Ok(Self {
-            common,
-        })
+        Ok(Self { common })
     }
 
     fn version(&self) -> u8 {
@@ -78,15 +76,9 @@ impl CzImage for Cz4Image {
 
         let bitmap = decompress(bytes, &block_info)?;
 
-        let mut picture = image::RgbaImage::new(header.width() as u32, header.height() as u32);
+        let bitmap = line_diff_cz4(&header, &bitmap);
 
-        let pixel_byte_count = 3;
-        line_diff_cz4(&mut picture, 3, pixel_byte_count, &bitmap);
-
-        Ok(Self {
-            header,
-            bitmap: picture.into_vec()
-        })
+        Ok(Self { header, bitmap })
     }
 
     fn save_as_png(&self, name: &str) -> Result<(), image::error::ImageError> {
@@ -94,7 +86,8 @@ impl CzImage for Cz4Image {
             self.header.width() as u32,
             self.header.height() as u32,
             self.bitmap.clone(),
-        ).unwrap();
+        )
+        .unwrap();
 
         img.save(name)?;
 

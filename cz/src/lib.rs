@@ -1,5 +1,5 @@
-pub mod common;
 mod binio;
+pub mod common;
 mod compression;
 pub mod formats {
     pub mod cz0;

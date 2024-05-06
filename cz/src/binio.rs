@@ -32,12 +32,13 @@ impl BitIO {
         }
 
         if bit_len % 8 == 0 && self.bit_offset == 0 {
-            return self.read(bit_len / 8)
+            return self.read(bit_len / 8);
         }
 
         let mut result = 0;
         for i in 0..bit_len {
-            let bit_value = ((self.data[self.byte_offset] as usize >> self.bit_offset as usize) & 1) as u64;
+            let bit_value =
+                ((self.data[self.byte_offset] as usize >> self.bit_offset as usize) & 1) as u64;
             self.bit_offset += 1;
 
             if self.bit_offset == 8 {
@@ -48,7 +49,7 @@ impl BitIO {
             result |= bit_value << i;
         }
 
-        return result
+        return result;
     }
 
     pub fn read(&mut self, byte_len: usize) -> u64 {

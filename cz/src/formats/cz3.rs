@@ -1,12 +1,12 @@
 use std::{
     io::{self, Read, Seek, SeekFrom},
-    path::PathBuf
+    path::PathBuf,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::compression::{decompress, line_diff, parse_chunk_info};
 use crate::common::{CommonHeader, CzError, CzHeader, CzImage};
+use crate::compression::{decompress, line_diff, parse_chunk_info};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cz3Header {

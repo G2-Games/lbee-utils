@@ -10,3 +10,6 @@ authors = ["G2"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+[build]
+rustflags = ["-C", "target-cpu=native"]

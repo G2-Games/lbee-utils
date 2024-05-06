@@ -1,4 +1,8 @@
-use std::{fs::File, io::{self, BufWriter, Cursor, Read, Seek, Write}, path::PathBuf};
+use std::{
+    fs::File,
+    io::{self, BufWriter, Cursor, Read, Seek, Write},
+    path::PathBuf,
+};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 

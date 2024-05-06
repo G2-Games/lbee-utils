@@ -3,11 +3,11 @@ use image::{ImageFormat, Rgba};
 use std::{
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
-    path::PathBuf
+    path::PathBuf,
 };
 
-use crate::compression::{decompress, decompress_2, parse_chunk_info};
 use crate::common::{apply_palette, parse_colormap, CommonHeader, CzError, CzHeader, CzImage};
+use crate::compression::{decompress, decompress_2, parse_chunk_info};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cz2Header {
@@ -20,7 +20,7 @@ pub struct Cz2Header {
 impl CzHeader for Cz2Header {
     fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
-        Self: Sized
+        Self: Sized,
     {
         let common = CommonHeader::new(bytes)?;
 
@@ -122,7 +122,8 @@ impl CzImage for Cz2Image {
             self.header.width() as u32,
             self.header.height() as u32,
             self.bitmap.clone(),
-        ).unwrap();
+        )
+        .unwrap();
 
         img.save(name)?;
 
@@ -145,8 +146,6 @@ impl CzImage for Cz2Image {
         let mut output_file = BufWriter::new(File::create(path.into())?);
 
         output_file.write_all(&self.header.to_bytes()?)?;
-
-
 
         output_file.flush()?;
         Ok(())

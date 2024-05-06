@@ -3,11 +3,11 @@ use image::{ImageFormat, Rgba};
 use std::{
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
-    path::PathBuf
+    path::PathBuf,
 };
 
-use crate::compression::{decompress, parse_chunk_info};
 use crate::common::{apply_palette, parse_colormap, CommonHeader, CzError, CzHeader, CzImage};
+use crate::compression::{decompress, parse_chunk_info};
 
 #[derive(Debug, Clone)]
 pub struct Cz1Image {
@@ -66,7 +66,7 @@ impl CzImage for Cz1Image {
             self.header.width() as u32,
             self.header.height() as u32,
             image::ExtendedColorType::Rgba8,
-            ImageFormat::Png
+            ImageFormat::Png,
         )
     }
 
@@ -86,8 +86,6 @@ impl CzImage for Cz1Image {
         let mut output_file = BufWriter::new(File::create(path.into())?);
 
         output_file.write_all(&self.header.to_bytes()?)?;
-
-
 
         output_file.flush()?;
         Ok(())
