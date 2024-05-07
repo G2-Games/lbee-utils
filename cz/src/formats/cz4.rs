@@ -76,15 +76,22 @@ impl CzImage for Cz4Image {
         let block_info = parse_chunk_info(bytes)?;
         bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
-        let pcount = header.width() as usize * header.height() as usize;
-        let bitmap = decompress(bytes, &block_info)?;
-        let data2 = bitmap[pcount * 3..].to_vec();
+        let pcount = (header.width() as usize * header.height() as usize) * 3;
+        let data = decompress(bytes, &block_info)?;
+        let data2 = data[pcount..].to_vec();
 
-        let bitmap = line_diff_cz4(&header, &bitmap);
+        let mut picture = image::RgbaImage::new(header.width() as u32, header.height() as u32);
 
-        let bitmap = line_diff_cz4(&header, &bitmap);
+        let pixel_byte_count = 3;
+        line_diff_cz4(&mut picture, pixel_byte_count, &data);
 
-        Ok(Self { header, bitmap })
+        let pixel_byte_count = 1;
+        line_diff_cz4(&mut picture, pixel_byte_count, &data2);
+
+        Ok(Self {
+            header,
+            bitmap: picture.into_raw()
+        })
     }
 
     fn header(&self) -> &Self::Header {
@@ -107,7 +114,12 @@ impl CzImage for Cz4Image {
         todo!()
     }
 
+<<<<<<< HEAD
     fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
         todo!()
+=======
+    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
+        self.bitmap = bitmap.to_vec();
+>>>>>>> 613e38c6b560990c77e994f2359fc4c30ff112a4
     }
 }

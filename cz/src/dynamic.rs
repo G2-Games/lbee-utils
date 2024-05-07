@@ -1,4 +1,4 @@
-use std::io::{Read, Seek};
+use std::{io::{Read, Seek}, path::{Path, PathBuf}};
 use byteorder::ReadBytesExt;
 
 use crate::{
@@ -20,12 +20,18 @@ pub enum DynamicCz {
 }
 
 impl DynamicCz {
-    pub fn save_as_png(&self, name: &str) -> Result<(), png::EncodingError> {
-        let file = std::fs::File::create(name).unwrap();
-        let ref mut w = std::io::BufWriter::new(file);
+    pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<Self, CzError> {
+        let mut img_file = std::fs::File::open(path)?;
+
+        Self::decode(&mut img_file)
+    }
+
+    pub fn save_as_png<P: ?Sized + AsRef<Path>>(&self, path: &P) -> Result<(), png::EncodingError> {
+        let file = std::fs::File::create(path).unwrap();
+        let writer = std::io::BufWriter::new(file);
 
         let mut encoder = png::Encoder::new(
-            w,
+            writer,
             self.header().width() as u32,
             self.header().height() as u32,
         );
@@ -33,7 +39,7 @@ impl DynamicCz {
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder.write_header()?;
 
-        writer.write_image_data(&self.bitmap())?;
+        writer.write_image_data(self.bitmap())?; // Save
 
         Ok(())
     }
@@ -70,11 +76,11 @@ impl CzImage for DynamicCz {
 
     fn header(&self) -> &Self::Header {
         match self {
-            DynamicCz::CZ0(img) => &img.header().common(),
-            DynamicCz::CZ1(img) => &img.header().common(),
-            DynamicCz::CZ2(img) => &img.header().common(),
-            DynamicCz::CZ3(img) => &img.header().common(),
-            DynamicCz::CZ4(img) => &img.header().common(),
+            DynamicCz::CZ0(img) => img.header().common(),
+            DynamicCz::CZ1(img) => img.header().common(),
+            DynamicCz::CZ2(img) => img.header().common(),
+            DynamicCz::CZ3(img) => img.header().common(),
+            DynamicCz::CZ4(img) => img.header().common(),
         }
     }
 

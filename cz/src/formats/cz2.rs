@@ -102,7 +102,7 @@ impl CzImage for Cz2Image {
 
         // Apply the palette if it exists
         if let Some(pal) = &palette {
-            bitmap = apply_palette(&mut bitmap, pal);
+            bitmap = apply_palette(&mut bitmap.as_slice(), pal);
         }
 
         let image = Self {

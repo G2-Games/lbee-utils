@@ -101,7 +101,7 @@ impl CzHeader for CommonHeader {
     }
 
     fn common(&self) -> &CommonHeader {
-        &self
+        self
     }
 
     fn version(&self) -> u8 {
@@ -184,7 +184,7 @@ pub fn parse_colormap<T: Seek + ReadBytesExt + Read>(
     Ok(colormap)
 }
 
-pub fn apply_palette(input: &mut Vec<u8>, palette: &[[u8; 4]]) -> Vec<u8> {
+pub fn apply_palette(input: &mut &[u8], palette: &[[u8; 4]]) -> Vec<u8> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {

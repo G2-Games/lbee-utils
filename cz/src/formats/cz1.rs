@@ -51,7 +51,7 @@ impl CzImage for Cz1Image {
                 bitmap.clone_into(raw);
             }
 
-            bitmap = apply_palette(&mut bitmap, pal);
+            bitmap = apply_palette(&mut bitmap.as_slice(), pal);
         }
 
         let image = Self {
