@@ -1,43 +1,35 @@
-use cz::{dynamic::DynamicCz, CzImage};
-use std::fs;
+use std::{fs::DirBuilder, time::{Duration, Instant}};
+
+use cz::dynamic::DynamicCz;
 use walkdir::WalkDir;
 
 fn main() {
-    if let Err(err) = fs::DirBuilder::new().create("test/") {
-        println!("{}", err);
-    }
+    let _ = DirBuilder::new().create("test");
 
-    let mut success = 0;
-    let mut failure = 0;
-    for entry in WalkDir::new("../../test_files") {
+    let mut total_time = Duration::default();
+    let mut num_images = 0;
+    for entry in WalkDir::new("../../test_files/loopers/") {
         let entry = entry.unwrap();
-
         if entry.path().is_dir() {
             continue;
         }
 
-        let mut input = match fs::File::open(entry.path()) {
-            Ok(file) => file,
-            Err(_) => continue,
-        };
-
-        let img_file = match DynamicCz::decode(&mut input) {
-            Ok(file) => file,
+        let timer = Instant::now();
+        let img = match DynamicCz::open(entry.path()) {
+            Ok(img) => img,
             Err(err) => {
-                println!(
-                    "{}: {}",
-                    entry.path().file_name().unwrap().to_string_lossy(),
-                    err,
-                );
-                failure += 1;
+                println!("{}: {}", entry.path().file_name().unwrap().to_string_lossy(), err);
                 continue;
             },
         };
+        let elapsed = timer.elapsed();
+        total_time += elapsed;
+        num_images += 1;
 
-        success += 1;
-
-        img_file.save_as_png(
-            &format!("test/z-{}.png", entry.path().file_stem().unwrap().to_string_lossy())
+        img.save_as_png(
+            &format!("test/{}.png", entry.path().file_name().unwrap().to_string_lossy())
         ).unwrap();
     }
+
+    dbg!(total_time / num_images);
 }

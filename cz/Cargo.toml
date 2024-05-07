@@ -11,3 +11,4 @@ A encoder/decoder for CZ# image files used in
 byteorder = "1.5.0"
 thiserror = "1.0.59"
 png = "0.17.13"
+image = { version = "0.25.1", default-features = false }
