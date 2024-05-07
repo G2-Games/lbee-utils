@@ -19,7 +19,7 @@ pub enum CzError {
     #[error("File is not a CZ image")]
     NotCzFile,
 
-    #[error("Failed to read/write input/output")]
+    #[error("Failed to read/write input/output: {}", 0)]
     IoError(#[from] io::Error),
 
     #[error("Problem while decoding file")]
@@ -166,7 +166,7 @@ pub trait CzImage {
     fn into_bitmap(self) -> Vec<u8>;
 
     /// Set the bitmap the image contains
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header);
+    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16);
 }
 
 pub fn parse_colormap<T: Seek + ReadBytesExt + Read>(

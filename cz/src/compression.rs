@@ -7,17 +7,29 @@ use std::{
 use crate::binio::BitIO;
 use crate::common::{CzError, CzHeader};
 
+/// The size of compressed data in each chunk
 #[derive(Debug, Clone, Copy)]
 pub struct ChunkInfo {
+    /// The size of the data when compressed
     pub size_compressed: usize,
+
+    /// The size of the original uncompressed data
     pub size_raw: usize,
 }
 
+/// A CZ# file's information about compression chunks
 #[derive(Debug, Clone)]
 pub struct CompressionInfo {
+    /// Number of compression chunks
     pub chunk_count: usize,
+
+    /// Total size of the data when compressed
     pub total_size_compressed: usize,
+
+    /// Total size of the original uncompressed data
     pub total_size_raw: usize,
+
+    /// The compression chunk information
     pub chunks: Vec<ChunkInfo>,
 
     /// Length of the compression chunk info
@@ -25,6 +37,9 @@ pub struct CompressionInfo {
 }
 
 /// Get info about the compression chunks
+///
+/// These are defined by a length value, followed by the number of data chunks
+/// that length value says split into compressed and original size u32 values
 pub fn parse_chunk_info<T: Seek + ReadBytesExt + Read>(
     bytes: &mut T,
 ) -> Result<CompressionInfo, CzError> {

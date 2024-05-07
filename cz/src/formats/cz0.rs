@@ -189,10 +189,11 @@ impl CzImage for Cz0Image {
         self.bitmap
     }
 
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
+    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
         self.bitmap = bitmap.to_vec();
 
-        self.header = *header;
+        self.header.common.width = width;
+        self.header.common.height = height;
     }
 }
 

@@ -33,7 +33,7 @@ impl DynamicCz {
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder.write_header()?;
 
-        writer.write_image_data(&self.bitmap())?; // Save
+        writer.write_image_data(&self.bitmap())?;
 
         Ok(())
     }
@@ -59,7 +59,13 @@ impl CzImage for DynamicCz {
     }
 
     fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
-        todo!()
+        match self {
+            DynamicCz::CZ0(img) => img.save_as_cz(path),
+            DynamicCz::CZ1(_) => unimplemented!(),
+            DynamicCz::CZ2(_) => unimplemented!(),
+            DynamicCz::CZ3(_) => unimplemented!(),
+            DynamicCz::CZ4(_) => unimplemented!(),
+        }
     }
 
     fn header(&self) -> &Self::Header {
@@ -96,7 +102,7 @@ impl CzImage for DynamicCz {
         }
     }
 
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
-        todo!()
+    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
+        unimplemented!()
     }
 }

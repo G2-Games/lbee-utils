@@ -76,7 +76,11 @@ impl CzImage for Cz4Image {
         let block_info = parse_chunk_info(bytes)?;
         bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
+        let pcount = header.width() as usize * header.height() as usize;
         let bitmap = decompress(bytes, &block_info)?;
+        let data2 = bitmap[pcount * 3..].to_vec();
+
+        let bitmap = line_diff_cz4(&header, &bitmap);
 
         let bitmap = line_diff_cz4(&header, &bitmap);
 
@@ -103,7 +107,7 @@ impl CzImage for Cz4Image {
         todo!()
     }
 
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
+    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
         todo!()
     }
 }

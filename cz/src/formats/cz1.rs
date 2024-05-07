@@ -21,11 +21,17 @@ impl CzImage for Cz1Image {
 
     fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError> {
         // Get the header from the input
-        let header = CommonHeader::new(bytes).unwrap();
+        let mut header = CommonHeader::new(bytes).unwrap();
         bytes.seek(SeekFrom::Start(header.length() as u64))?;
 
         if header.version() != 1 {
             return Err(CzError::VersionMismatch(1, header.version()));
+        }
+
+        // Lock the color depth to 8 if it's over 32
+        // This is obviously wrong, but why is it wrong?
+        if header.depth() > 32 {
+            header.depth = 8
         }
 
         // The color palette, gotten for 8 and 4 BPP images
@@ -83,7 +89,7 @@ impl CzImage for Cz1Image {
         Ok(())
     }
 
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
+    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
         todo!()
     }
 }

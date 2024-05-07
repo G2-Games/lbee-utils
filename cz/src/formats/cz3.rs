@@ -148,7 +148,7 @@ impl CzImage for Cz3Image {
         todo!()
     }
 
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
+    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
         todo!()
     }
 }
