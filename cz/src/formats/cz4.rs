@@ -114,12 +114,10 @@ impl CzImage for Cz4Image {
         todo!()
     }
 
-<<<<<<< HEAD
     fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
-        todo!()
-=======
-    fn set_bitmap(&mut self, bitmap: &[u8], header: &Self::Header) {
         self.bitmap = bitmap.to_vec();
->>>>>>> 613e38c6b560990c77e994f2359fc4c30ff112a4
+
+        self.header.common.width = width;
+        self.header.common.height = height;
     }
 }
