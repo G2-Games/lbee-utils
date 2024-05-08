@@ -5,12 +5,13 @@ use std::{
 use byteorder::ReadBytesExt;
 
 use crate::{
-    common::{apply_palette, get_palette, CommonHeader, CzError, CzHeader, CzVersion},
+    common::{apply_palette, get_palette, CommonHeader, CzError, CzHeader, CzVersion, ExtendedHeader},
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
 pub struct DynamicCz {
     header_common: CommonHeader,
+    header_extended: Option<ExtendedHeader>,
     palette: Option<Vec<[u8; 4]>>,
     bitmap: Vec<u8>,
 }
@@ -45,6 +46,10 @@ impl DynamicCz {
     pub fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
         // Get the header common to all CZ images
         let header_common = CommonHeader::new(input)?;
+        let mut header_extended = None;
+        if header_common.length() > 15 && header_common.version() != CzVersion::CZ2 {
+            header_extended = Some(ExtendedHeader::new(input, &header_common)?);
+        }
         input.seek(SeekFrom::Start(header_common.length() as u64))?;
 
         // Get the color palette if the bit depth is 8 or less
@@ -77,6 +82,7 @@ impl DynamicCz {
 
         Ok(Self {
             header_common,
+            header_extended,
             palette,
             bitmap,
         })

@@ -213,6 +213,91 @@ impl CzHeader for CommonHeader {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ExtendedHeader {
+    /// Unknown bytes
+    unknown_1: [u8; 5],
+
+    /// Width of cropped image area
+    pub crop_width: u16,
+
+    /// Height of cropped image area
+    pub crop_height: u16,
+
+    /// Bounding box width
+    pub bounds_width: u16,
+
+    /// Bounding box height
+    pub bounds_height: u16,
+
+    /// Offset width
+    pub offset_width: Option<u16>,
+
+    /// Offset height
+    pub offset_height: Option<u16>,
+
+    unknown_2: Option<u32>,
+}
+
+impl ExtendedHeader {
+    pub fn new<T: Seek + ReadBytesExt + Read>(
+        input: &mut T,
+        common_header: &CommonHeader
+    ) -> Result<Self, CzError> {
+        let mut unknown_1 = [0u8; 5];
+        input.read_exact(&mut unknown_1)?;
+
+        let crop_width = input.read_u16::<LittleEndian>()?;
+        let crop_height = input.read_u16::<LittleEndian>()?;
+
+        let bounds_width = input.read_u16::<LittleEndian>()?;
+        let bounds_height = input.read_u16::<LittleEndian>()?;
+
+        let mut offset_width = None;
+        let mut offset_height = None;
+        let mut unknown_2 = None;
+        if common_header.length() > 28 {
+            offset_width = Some(input.read_u16::<LittleEndian>()?);
+            offset_height = Some(input.read_u16::<LittleEndian>()?);
+
+            unknown_2 = Some(input.read_u32::<LittleEndian>()?);
+        }
+
+        Ok(Self {
+            unknown_1,
+
+            crop_width,
+            crop_height,
+
+            bounds_width,
+            bounds_height,
+
+            offset_width,
+            offset_height,
+
+            unknown_2,
+        })
+    }
+
+    pub fn as_bytes(&self) -> Result<Vec<u8>, io::Error> {
+        let mut buf = vec![];
+
+        buf.write_all(&self.unknown_1)?;
+        buf.write_u16::<LittleEndian>(self.crop_width)?;
+        buf.write_u16::<LittleEndian>(self.crop_height)?;
+        buf.write_u16::<LittleEndian>(self.bounds_width)?;
+        buf.write_u16::<LittleEndian>(self.bounds_height)?;
+
+        if self.offset_width.is_some() {
+            buf.write_u16::<LittleEndian>(self.offset_width.unwrap())?;
+            buf.write_u16::<LittleEndian>(self.offset_height.unwrap())?;
+            buf.write_u32::<LittleEndian>(self.unknown_2.unwrap())?;
+        }
+
+        Ok(buf)
+    }
+}
+
 pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     num_colors: usize,
