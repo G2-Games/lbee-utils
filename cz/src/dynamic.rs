@@ -1,11 +1,10 @@
 use std::{
-    io::{BufReader, Read, Seek, SeekFrom},
-    path::Path
+    fs::File, io::{BufReader, Cursor, Read, Seek, SeekFrom, Write}, path::Path
 };
 use byteorder::ReadBytesExt;
 
 use crate::{
-    common::{apply_palette, get_palette, CommonHeader, CzError, CzHeader, CzVersion, ExtendedHeader},
+    common::{apply_palette, get_palette, rgba_to_indexed, CommonHeader, CzError, CzHeader, CzVersion, ExtendedHeader},
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
@@ -89,7 +88,32 @@ impl DynamicCz {
     }
 
     pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
-        todo!()
+        let mut out_file = File::create(path.into())?;
+
+        self.header_common.write_into(&mut out_file)?;
+
+        if let Some(ext) = self.header_extended {
+            ext.write_into(&mut out_file)?;
+        }
+
+        let output_bitmap;
+        match &self.palette {
+            Some(pal) if self.header_common.depth() <= 8 => {
+                output_bitmap = rgba_to_indexed(&self.bitmap(), &pal)?
+            },
+            _ => output_bitmap = self.bitmap().clone()
+        }
+
+        match self.header_common.version() {
+            CzVersion::CZ0 => cz0::encode(&mut out_file, &self.bitmap)?,
+            CzVersion::CZ1 => todo!(),
+            CzVersion::CZ2 => todo!(),
+            CzVersion::CZ3 => todo!(),
+            CzVersion::CZ4 => todo!(),
+            CzVersion::CZ5 => todo!(),
+        }
+
+        Ok(())
     }
 
     pub fn header(&self) -> &CommonHeader {

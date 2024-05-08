@@ -1,5 +1,5 @@
-use byteorder::ReadBytesExt;
-use std::io::{Read, Seek, SeekFrom};
+use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use crate::common::CzError;
 use crate::compression::{decompress, get_chunk_info};
@@ -13,4 +13,13 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Vec<u8>, C
     let bitmap = decompress(bytes, &block_info).unwrap();
 
     Ok(bitmap)
+}
+
+pub fn encode<T: WriteBytesExt + Write>(
+    output: &mut T,
+    bitmap: &[u8]
+) -> Result<(), CzError> {
+    output.write_all(bitmap)?;
+
+    Ok(())
 }

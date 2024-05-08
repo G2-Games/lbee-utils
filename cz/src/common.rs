@@ -66,7 +66,7 @@ pub trait CzHeader {
     fn common(&self) -> &CommonHeader;
 
     /// Turn the header into bytes equivalent to the original header from the file
-    fn to_bytes(&self) -> Result<Vec<u8>, io::Error>;
+    fn write_into<T: Seek + WriteBytesExt + Write>(&self, output: &mut T) -> Result<usize, io::Error>;
 
     /// The version of the image
     fn version(&self) -> CzVersion;
@@ -198,18 +198,21 @@ impl CzHeader for CommonHeader {
         self.unknown
     }
 
-    fn to_bytes(&self) -> Result<Vec<u8>, io::Error> {
-        let mut buf = vec![];
-
+    fn write_into<T: Seek + WriteBytesExt + Write>(
+        &self,
+        output: &mut T,
+    ) -> Result<usize, io::Error> {
+        let pos = output.stream_position()?;
         let magic_bytes = [b'C', b'Z', b'0' + self.version as u8, b'\0'];
-        buf.write_all(&magic_bytes)?;
-        buf.write_u32::<LittleEndian>(self.length() as u32)?;
-        buf.write_u16::<LittleEndian>(self.width())?;
-        buf.write_u16::<LittleEndian>(self.height())?;
-        buf.write_u16::<LittleEndian>(self.depth())?;
-        buf.write_u8(self.color_block())?;
 
-        Ok(buf)
+        output.write_all(&magic_bytes)?;
+        output.write_u32::<LittleEndian>(self.length() as u32)?;
+        output.write_u16::<LittleEndian>(self.width())?;
+        output.write_u16::<LittleEndian>(self.height())?;
+        output.write_u16::<LittleEndian>(self.depth())?;
+        output.write_u8(self.color_block())?;
+
+        Ok((output.stream_position()? - pos) as usize)
     }
 }
 
@@ -279,22 +282,25 @@ impl ExtendedHeader {
         })
     }
 
-    pub fn as_bytes(&self) -> Result<Vec<u8>, io::Error> {
-        let mut buf = vec![];
+    pub fn write_into<T: Seek + WriteBytesExt + Write>(
+        &self,
+        output: &mut T
+    ) -> Result<usize, io::Error> {
+        let pos = output.stream_position()?;
 
-        buf.write_all(&self.unknown_1)?;
-        buf.write_u16::<LittleEndian>(self.crop_width)?;
-        buf.write_u16::<LittleEndian>(self.crop_height)?;
-        buf.write_u16::<LittleEndian>(self.bounds_width)?;
-        buf.write_u16::<LittleEndian>(self.bounds_height)?;
+        output.write_all(&self.unknown_1)?;
+        output.write_u16::<LittleEndian>(self.crop_width)?;
+        output.write_u16::<LittleEndian>(self.crop_height)?;
+        output.write_u16::<LittleEndian>(self.bounds_width)?;
+        output.write_u16::<LittleEndian>(self.bounds_height)?;
 
         if self.offset_width.is_some() {
-            buf.write_u16::<LittleEndian>(self.offset_width.unwrap())?;
-            buf.write_u16::<LittleEndian>(self.offset_height.unwrap())?;
-            buf.write_u32::<LittleEndian>(self.unknown_2.unwrap())?;
+            output.write_u16::<LittleEndian>(self.offset_width.unwrap())?;
+            output.write_u16::<LittleEndian>(self.offset_height.unwrap())?;
+            output.write_u32::<LittleEndian>(self.unknown_2.unwrap())?;
         }
 
-        Ok(buf)
+        Ok((output.stream_position()? - pos) as usize)
     }
 }
 
@@ -326,6 +332,16 @@ pub fn apply_palette(
         } else {
             return Err(CzError::PaletteError)
         }
+    }
+
+    Ok(output_map)
+}
+
+pub fn rgba_to_indexed(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzError> {
+    let mut output_map = Vec::new();
+
+    for rgba in input.windows(4).step_by(4) {
+        dbg!(rgba);
     }
 
     Ok(output_map)
