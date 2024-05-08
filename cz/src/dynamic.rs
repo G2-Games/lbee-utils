@@ -99,14 +99,18 @@ impl DynamicCz {
         let output_bitmap;
         match &self.palette {
             Some(pal) if self.header_common.depth() <= 8 => {
-                output_bitmap = rgba_to_indexed(&self.bitmap(), &pal)?
+                output_bitmap = rgba_to_indexed(&self.bitmap(), &pal)?;
+
+                for rgba in pal {
+                    out_file.write_all(rgba)?;
+                }
             },
             _ => output_bitmap = self.bitmap().clone()
         }
 
         match self.header_common.version() {
-            CzVersion::CZ0 => cz0::encode(&mut out_file, &self.bitmap)?,
-            CzVersion::CZ1 => todo!(),
+            CzVersion::CZ0 => cz0::encode(&mut out_file, &output_bitmap)?,
+            CzVersion::CZ1 => cz1::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ2 => todo!(),
             CzVersion::CZ3 => todo!(),
             CzVersion::CZ4 => todo!(),

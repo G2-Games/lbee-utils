@@ -341,7 +341,8 @@ pub fn rgba_to_indexed(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzE
     let mut output_map = Vec::new();
 
     for rgba in input.windows(4).step_by(4) {
-        dbg!(rgba);
+        let index = palette.iter().position(|e| e == rgba).unwrap_or_default();
+        output_map.push(index as u8);
     }
 
     Ok(output_map)

@@ -1,7 +1,6 @@
-use byteorder::{LittleEndian, ReadBytesExt};
-use image::RgbaImage;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     io::{Read, Seek, Write},
 };
 
@@ -35,6 +34,34 @@ pub struct CompressionInfo {
 
     /// Length of the compression chunk info
     pub length: usize,
+}
+
+impl Default for CompressionInfo {
+    fn default() -> Self {
+        Self {
+            chunk_count: 0,
+            total_size_compressed: 0,
+            total_size_raw: 0,
+            chunks: Vec::new(),
+            length: 0
+        }
+    }
+}
+
+impl CompressionInfo {
+    pub fn write_into<T: WriteBytesExt + Write>(
+        &self,
+        output: &mut T,
+    ) -> Result<(), std::io::Error> {
+        output.write_u32::<LittleEndian>(self.chunk_count as u32)?;
+
+        for chunk in &self.chunks {
+            output.write_u32::<LittleEndian>(chunk.size_compressed as u32)?;
+            output.write_u32::<LittleEndian>(chunk.size_raw as u32)?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Get info about the compression chunks
@@ -123,7 +150,7 @@ pub fn decompress_2<T: Seek + ReadBytesExt + Read>(
 pub fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
     let mut data = input_data.to_vec();
     data[0..2].copy_from_slice(&[0, 0]);
-    let mut dictionary = BTreeMap::new();
+    let mut dictionary = HashMap::new();
     for i in 0..256 {
         dictionary.insert(i as u64, vec![i as u8]);
     }
@@ -174,7 +201,12 @@ fn get_offset(input: &[u8], src: usize) -> usize {
     (((input[src] as usize) | (input[src + 1] as usize) << 8) - 0x101) * 2
 }
 
-fn copy_range(bitmap: &mut Vec<u8>, input: &[u8], src: usize, dst: usize) -> usize {
+fn copy_range(
+    bitmap: &mut Vec<u8>,
+    input: &[u8],
+    src: usize,
+    dst: usize
+) -> usize {
     let mut dst = dst;
     let start_pos = dst;
 
@@ -257,45 +289,101 @@ pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
     output_buf
 }
 
-pub fn line_diff_cz4(picture: &mut RgbaImage, pixel_byte_count: usize, data: &[u8]) {
-    let width = picture.width();
-    let height = picture.height();
-    let block_height = (f32::ceil(height as f32 / 3.0) as u16) as u32;
 
-    let mut curr_line;
-    let mut prev_line = vec![0u8; width as usize * pixel_byte_count];
-
-    let mut i = 0;
-    for y in 0..height {
-        curr_line = data[i..i + width as usize * pixel_byte_count].to_vec();
-
-        if y % block_height != 0 {
-            for x in 0..(width as usize * pixel_byte_count) {
-                curr_line[x] = u8::wrapping_add(curr_line[x], prev_line[x])
-            }
-        }
-
-        for x in 0..width as usize {
-            if pixel_byte_count == 1 {
-                picture.get_pixel_mut(x as u32, y).0[3] = curr_line[x];
-            } else if pixel_byte_count == 4 {
-                picture.get_pixel_mut(x as u32, y).0 = [
-                    curr_line[x * pixel_byte_count],
-                    curr_line[x * pixel_byte_count + 1],
-                    curr_line[x * pixel_byte_count + 2],
-                    curr_line[x * pixel_byte_count + 3],
-                ];
-            } else if pixel_byte_count == 3 {
-                picture.get_pixel_mut(x as u32, y).0 = [
-                    curr_line[x * pixel_byte_count],
-                    curr_line[x * pixel_byte_count + 1],
-                    curr_line[x * pixel_byte_count + 2],
-                    0xFF,
-                ];
-            }
-        }
-
-        prev_line.clone_from(&curr_line);
-        i += width as usize * pixel_byte_count;
+pub fn compress(
+    data: &[u8],
+    size: usize,
+) -> (Vec<u8>, CompressionInfo) {
+    let mut size = size;
+    if size == 0 {
+        size = 0xFEFD
     }
+
+    let mut part_data;
+
+    let mut offset = 0;
+    let mut count = 0;
+    let mut last = String::new();
+
+    let mut output_buf: Vec<u8> = vec![];
+    let mut output_info = CompressionInfo {
+        total_size_raw: data.len(),
+        ..Default::default()
+    };
+
+    loop {
+        (count, part_data, last) = compress_lzw(&data[offset..], size, last);
+        if count == 0 {
+            break
+        }
+        offset += count;
+
+        for d in &part_data {
+            output_buf.write(&d.to_le_bytes()).unwrap();
+        }
+
+        output_info.chunks.push(ChunkInfo {
+            size_compressed: part_data.len(),
+            size_raw: count
+        });
+
+        output_info.chunk_count += 1;
+    }
+
+    output_info.total_size_compressed = output_buf.len() / 2;
+
+    (output_buf, output_info)
+}
+
+fn compress_lzw(data: &[u8], size: usize, last: String) -> (usize, Vec<u16>, String) {
+    let mut count = 0;
+    let mut dictionary = HashMap::new();
+    for i in 0..256 {
+        dictionary.insert(i.to_string(), i as u16);
+    }
+    let mut dictionary_count = (dictionary.len() + 1) as u16;
+
+
+    let mut element = String::new();
+    if last.len() != 0 {
+        element = last.clone()
+    }
+
+    let mut compressed = Vec::with_capacity(size);
+    for c in data {
+        let mut entry = element.clone();
+        entry.push_str(&c.to_string());
+
+        if dictionary.get(&entry).is_some() {
+            element = entry
+        } else {
+            compressed.push(*dictionary.get(&element).unwrap());
+            dictionary.insert(entry, dictionary_count);
+            element = c.to_string();
+            dictionary_count += 1;
+        }
+
+        count += 1;
+
+        if size > 0 && compressed.len() == size {
+            break
+        }
+    }
+
+    let last_element = element;
+    if compressed.len() == 0 {
+        if last_element.len() != 0 {
+            for c in last_element.bytes() {
+                compressed.push(*dictionary.get(&c.to_string()).unwrap());
+            }
+        }
+        return (count, compressed, String::new())
+    } else if compressed.len() < size {
+        if last_element.len() != 0 {
+            compressed.push(*dictionary.get(&last_element).unwrap());
+        }
+        return (count, compressed, String::new())
+    }
+
+    (count, compressed, last_element)
 }
