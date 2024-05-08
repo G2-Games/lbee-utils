@@ -26,6 +26,14 @@ pub enum CzError {
     DecodeError,
 }
 
+pub enum CzVersion {
+    CZ0,
+    CZ1,
+    CZ2,
+    CZ3,
+    CZ4,
+}
+
 pub trait CzHeader {
     fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
@@ -37,8 +45,11 @@ pub trait CzHeader {
     /// Turn the header into bytes equivalent to the original header from the file
     fn to_bytes(&self) -> Result<Vec<u8>, io::Error>;
 
-    /// The version of the [CzImage] file
+    /// The version of the image
     fn version(&self) -> u8;
+
+    /// Set the version of the image
+    fn set_version(&mut self);
 
     /// The length of the header in bytes
     fn length(&self) -> usize;
@@ -46,11 +57,21 @@ pub trait CzHeader {
     /// The width of the image
     fn width(&self) -> u16;
 
+    /// Set the width of the image
+    fn set_width(&mut self);
+
     /// The height of the image
     fn height(&self) -> u16;
 
+    /// Set the height of the image
+    fn set_height(&mut self);
+
     /// The bit depth of the image (BPP)
     fn depth(&self) -> u16;
+
+    fn set_depth(&mut self) {
+        unimplemented!()
+    }
 
     /// An unknown value?
     fn color_block(&self) -> u8;
@@ -156,6 +177,8 @@ pub trait CzImage {
 
     /// Get the header for metadata
     fn header(&self) -> &Self::Header;
+
+    fn header_mut(&mut self) -> &mut Self::Header;
 
     /// Set the header with its metadata
     fn set_header(&mut self, header: &Self::Header);

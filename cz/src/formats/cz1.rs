@@ -11,9 +11,8 @@ use crate::compression::{decompress, parse_chunk_info};
 #[derive(Debug, Clone)]
 pub struct Cz1Image {
     header: CommonHeader,
-    raw_bitmap: Option<Vec<u8>>,
     bitmap: Vec<u8>,
-    palette: Vec<[u8; 4]>,
+    palette: Option<Vec<[u8; 4]>>,
 }
 
 impl CzImage for Cz1Image {
@@ -40,25 +39,21 @@ impl CzImage for Cz1Image {
             palette = Some(parse_colormap(bytes, 1 << header.depth())?);
         }
 
+        // Get the information about the compressed chunks
         let chunk_info = parse_chunk_info(bytes)?;
 
+        // Get the bitmap
         let mut bitmap = decompress(bytes, &chunk_info).unwrap();
-        let mut raw_bitmap = None;
 
         // Apply the palette if it exists
         if let Some(pal) = &palette {
-            if let Some(raw) = &mut raw_bitmap {
-                bitmap.clone_into(raw);
-            }
-
             bitmap = apply_palette(&mut bitmap.as_slice(), pal);
         }
 
         let image = Self {
             header,
             bitmap,
-            raw_bitmap,
-            palette: palette.unwrap(),
+            palette,
         };
 
         Ok(image)
@@ -66,6 +61,10 @@ impl CzImage for Cz1Image {
 
     fn header(&self) -> &Self::Header {
         &self.header
+    }
+
+    fn header_mut(&mut self) -> &mut Self::Header {
+        &mut self.header
     }
 
     fn set_header(&mut self, header:& Self::Header) {

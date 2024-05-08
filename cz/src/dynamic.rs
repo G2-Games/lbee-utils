@@ -1,8 +1,11 @@
-use std::{io::{Read, Seek}, path::{Path, PathBuf}};
+use std::{
+    io::{BufReader, Read, Seek},
+    path::Path
+};
 use byteorder::ReadBytesExt;
 
 use crate::{
-    common::{CommonHeader, CzError, CzHeader},
+    common::{CommonHeader, CzError, CzVersion, CzHeader},
     Cz0Image,
     Cz1Image,
     Cz2Image,
@@ -11,17 +14,15 @@ use crate::{
     CzImage
 };
 
-pub enum DynamicCz {
-    CZ0(Cz0Image),
-    CZ1(Cz1Image),
-    CZ2(Cz2Image),
-    CZ3(Cz3Image),
-    CZ4(Cz4Image),
+struct DynamicCz {
+    cz_type: CzVersion,
+    bitmap: Vec<u8>,
+    header_common: CommonHeader,
 }
 
 impl DynamicCz {
     pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<Self, CzError> {
-        let mut img_file = std::fs::File::open(path)?;
+        let mut img_file = BufReader::new(std::fs::File::open(path)?);
 
         Self::decode(&mut img_file)
     }
@@ -82,6 +83,10 @@ impl CzImage for DynamicCz {
             DynamicCz::CZ3(img) => img.header().common(),
             DynamicCz::CZ4(img) => img.header().common(),
         }
+    }
+
+    fn header_mut(&mut self) -> &mut Self::Header {
+        todo!()
     }
 
     fn set_header(&mut self, header: &Self::Header) {

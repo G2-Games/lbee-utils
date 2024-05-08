@@ -98,6 +98,10 @@ impl CzImage for Cz4Image {
         &self.header
     }
 
+    fn header_mut(&mut self) -> &mut Self::Header {
+        &mut self.header
+    }
+
     fn set_header(&mut self, header: &Self::Header) {
         self.header = *header
     }
