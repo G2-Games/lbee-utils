@@ -41,7 +41,7 @@ pub struct CompressionInfo {
 ///
 /// These are defined by a length value, followed by the number of data chunks
 /// that length value says split into compressed and original size u32 values
-pub fn parse_chunk_info<T: Seek + ReadBytesExt + Read>(
+pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
     bytes: &mut T,
 ) -> Result<CompressionInfo, CzError> {
     let parts_count = bytes.read_u32::<LittleEndian>()?;
@@ -218,7 +218,7 @@ pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
     let mut output_buf = data.to_vec();
 
     let block_height =
-        (f32::ceil(height as f32 / header.color_block() as f32) as u16) as usize;
+        (f32::ceil(height as f32 / 3.0) as u16) as usize;
     let pixel_byte_count = header.depth() >> 3;
     let line_byte_count = (width * pixel_byte_count as u32) as usize;
 

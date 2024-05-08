@@ -1,23 +1,18 @@
 use std::{
-    io::{BufReader, Read, Seek},
+    io::{BufReader, Read, Seek, SeekFrom},
     path::Path
 };
 use byteorder::ReadBytesExt;
 
 use crate::{
-    common::{CommonHeader, CzError, CzVersion, CzHeader},
-    Cz0Image,
-    Cz1Image,
-    Cz2Image,
-    Cz3Image,
-    Cz4Image,
-    CzImage
+    common::{apply_palette, get_palette, CommonHeader, CzError, CzHeader, CzVersion},
+    formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
-struct DynamicCz {
-    cz_type: CzVersion,
-    bitmap: Vec<u8>,
+pub struct DynamicCz {
     header_common: CommonHeader,
+    palette: Option<Vec<[u8; 4]>>,
+    bitmap: Vec<u8>,
 }
 
 impl DynamicCz {
@@ -46,74 +41,81 @@ impl DynamicCz {
     }
 }
 
-impl CzImage for DynamicCz {
-    type Header = CommonHeader;
+impl DynamicCz {
+    pub fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
+        // Get the header common to all CZ images
+        let header_common = CommonHeader::new(input)?;
+        input.seek(SeekFrom::Start(header_common.length() as u64))?;
 
-    fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T)
-        -> Result<DynamicCz, crate::common::CzError>
-    {
-        let common_header = CommonHeader::new(input)?;
-        input.seek(std::io::SeekFrom::Start(0))?;
+        // Get the color palette if the bit depth is 8 or less
+        let palette = if header_common.depth() <= 8 {
+            let color_count = 1 << header_common.depth();
+            Some(get_palette(input, color_count)?)
+        } else {
+            None
+        };
 
-        Ok(match common_header.version() {
-            0 => DynamicCz::CZ0(Cz0Image::decode(input)?),
-            1 => DynamicCz::CZ1(Cz1Image::decode(input)?),
-            2 => DynamicCz::CZ2(Cz2Image::decode(input)?),
-            3 => DynamicCz::CZ3(Cz3Image::decode(input)?),
-            4 => DynamicCz::CZ4(Cz4Image::decode(input)?),
-            _ => return Err(CzError::NotCzFile),
+        // Get the image data as a bitmap
+        let mut bitmap = match header_common.version() {
+            CzVersion::CZ0 => cz0::decode(input)?,
+            CzVersion::CZ1 => cz1::decode(input)?,
+            CzVersion::CZ2 => cz2::decode(input)?,
+            CzVersion::CZ3 => cz3::decode(input, &header_common)?,
+            CzVersion::CZ4 => cz4::decode(input, &header_common)?,
+            CzVersion::CZ5 => unimplemented!(),
+        };
+
+        let image_size = header_common.width() as usize * header_common.height() as usize;
+        if bitmap.len() != image_size * (header_common.depth() >> 3) as usize {
+            // If the bitmap is smaller or larger than the image size, it is likely wrong
+            return Err(CzError::Corrupt)
+        }
+
+        if let Some(palette) = &palette {
+            bitmap = apply_palette(&bitmap, palette)?;
+        }
+
+        Ok(Self {
+            header_common,
+            palette,
+            bitmap,
         })
     }
 
-    fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
-        match self {
-            DynamicCz::CZ0(img) => img.save_as_cz(path),
-            DynamicCz::CZ1(_) => unimplemented!(),
-            DynamicCz::CZ2(_) => unimplemented!(),
-            DynamicCz::CZ3(_) => unimplemented!(),
-            DynamicCz::CZ4(_) => unimplemented!(),
-        }
-    }
-
-    fn header(&self) -> &Self::Header {
-        match self {
-            DynamicCz::CZ0(img) => img.header().common(),
-            DynamicCz::CZ1(img) => img.header().common(),
-            DynamicCz::CZ2(img) => img.header().common(),
-            DynamicCz::CZ3(img) => img.header().common(),
-            DynamicCz::CZ4(img) => img.header().common(),
-        }
-    }
-
-    fn header_mut(&mut self) -> &mut Self::Header {
+    pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
         todo!()
     }
 
-    fn set_header(&mut self, header: &Self::Header) {
-        todo!()
+    pub fn header(&self) -> &CommonHeader {
+        &self.header_common
     }
 
-    fn bitmap(&self) -> &Vec<u8> {
-        match self {
-            DynamicCz::CZ0(img) => img.bitmap(),
-            DynamicCz::CZ1(img) => img.bitmap(),
-            DynamicCz::CZ2(img) => img.bitmap(),
-            DynamicCz::CZ3(img) => img.bitmap(),
-            DynamicCz::CZ4(img) => img.bitmap(),
+    pub fn header_mut(&mut self) -> &mut CommonHeader {
+        &mut self.header_common
+    }
+
+    pub fn set_header(&mut self, header: &CommonHeader) {
+        self.header_common = header.to_owned()
+    }
+
+    pub fn bitmap(&self) -> &Vec<u8> {
+        &self.bitmap
+    }
+
+    pub fn into_bitmap(self) -> Vec<u8> {
+        self.bitmap
+    }
+
+    pub fn set_bitmap(&mut self, bitmap: Vec<u8>, width: u16, height: u16) -> Result<(), CzError> {
+        if bitmap.len() != width as usize * height as usize {
+            return Err(CzError::BitmapFormat)
         }
-    }
 
-    fn into_bitmap(self) -> Vec<u8> {
-        match self {
-            DynamicCz::CZ0(img) => img.into_bitmap(),
-            DynamicCz::CZ1(img) => img.into_bitmap(),
-            DynamicCz::CZ2(img) => img.into_bitmap(),
-            DynamicCz::CZ3(img) => img.into_bitmap(),
-            DynamicCz::CZ4(img) => img.into_bitmap(),
-        }
-    }
+        self.bitmap = bitmap;
 
-    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16) {
-        unimplemented!()
+        self.header_mut().set_width(width);
+        self.header_mut().set_height(height);
+
+        Ok(())
     }
 }

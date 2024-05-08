@@ -1,9 +1,6 @@
 //! Shared types and traits between CZ# files
 
-use std::{
-    io::{self, Read, Seek, Write},
-    path::PathBuf,
-};
+use std::io::{self, Read, Seek, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
@@ -13,25 +10,51 @@ pub enum CzError {
     #[error("Expected CZ{}, got CZ{}", 0, 1)]
     VersionMismatch(u8, u8),
 
+    #[error("Could not parse color index palette")]
+    PaletteError,
+
+    #[error("Bitmap size does not match image size")]
+    BitmapFormat,
+
     #[error("File data is incorrect, it might be corrupt")]
     Corrupt,
 
     #[error("File is not a CZ image")]
     NotCzFile,
 
-    #[error("Failed to read/write input/output: {}", 0)]
+    #[error("Failed to read/write input/output")]
     IoError(#[from] io::Error),
 
     #[error("Problem while decoding file")]
     DecodeError,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum CzVersion {
     CZ0,
     CZ1,
     CZ2,
     CZ3,
     CZ4,
+    CZ5,
+}
+
+impl TryFrom<u8> for CzVersion {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let value = match value {
+            0 => Self::CZ0,
+            1 => Self::CZ1,
+            2 => Self::CZ2,
+            3 => Self::CZ3,
+            4 => Self::CZ4,
+            5 => Self::CZ5,
+            _ => return Err("Value is not a valid CZ version"),
+        };
+
+        Ok(value)
+    }
 }
 
 pub trait CzHeader {
@@ -46,10 +69,10 @@ pub trait CzHeader {
     fn to_bytes(&self) -> Result<Vec<u8>, io::Error>;
 
     /// The version of the image
-    fn version(&self) -> u8;
+    fn version(&self) -> CzVersion;
 
     /// Set the version of the image
-    fn set_version(&mut self);
+    fn set_version(&mut self, version: CzVersion);
 
     /// The length of the header in bytes
     fn length(&self) -> usize;
@@ -58,13 +81,13 @@ pub trait CzHeader {
     fn width(&self) -> u16;
 
     /// Set the width of the image
-    fn set_width(&mut self);
+    fn set_width(&mut self, width: u16);
 
     /// The height of the image
     fn height(&self) -> u16;
 
     /// Set the height of the image
-    fn set_height(&mut self);
+    fn set_height(&mut self, height: u16);
 
     /// The bit depth of the image (BPP)
     fn depth(&self) -> u16;
@@ -81,22 +104,22 @@ pub trait CzHeader {
 #[derive(Debug, Clone, Copy)]
 pub struct CommonHeader {
     /// Format version from the magic bytes, (eg. CZ3, CZ4)
-    pub version: u8,
+    version: CzVersion,
 
     /// Length of the header in bytes
-    pub length: u32,
+    length: u32,
 
     /// Width of the image in pixels
-    pub width: u16,
+    width: u16,
 
     /// Height of the image in pixels
-    pub height: u16,
+    height: u16,
 
     /// Bit depth in Bits Per Pixel (BPP)
-    pub depth: u16,
+    depth: u16,
 
-    /// Color block
-    pub color_block: u8,
+    /// Color block? This byte's purpose is unclear
+    unknown: u8,
 }
 
 impl CzHeader for CommonHeader {
@@ -111,22 +134,40 @@ impl CzHeader for CommonHeader {
             return Err(CzError::NotCzFile);
         }
 
-        Ok(Self {
-            version: magic[2] - b'0',
+        // Ensure the version matches a CZ file type
+        let version = match CzVersion::try_from(magic[2] - b'0') {
+            Ok(ver) => ver,
+            Err(_) => return Err(CzError::NotCzFile),
+        };
+
+        let mut header = Self {
+            version,
             length: bytes.read_u32::<LittleEndian>()?,
             width: bytes.read_u16::<LittleEndian>()?,
             height: bytes.read_u16::<LittleEndian>()?,
             depth: bytes.read_u16::<LittleEndian>()?,
-            color_block: bytes.read_u8()?,
-        })
+            unknown: bytes.read_u8()?,
+        };
+
+        // Lock the color depth to 8 if it's over 32
+        // This is obviously wrong, but why is it wrong?
+        if header.depth() > 32 {
+            header.depth = 8
+        }
+
+        Ok(header)
     }
 
     fn common(&self) -> &CommonHeader {
         self
     }
 
-    fn version(&self) -> u8 {
+    fn version(&self) -> CzVersion {
         self.version
+    }
+
+    fn set_version(&mut self, version: CzVersion) {
+        self.version = version
     }
 
     fn length(&self) -> usize {
@@ -137,8 +178,16 @@ impl CzHeader for CommonHeader {
         self.width
     }
 
+    fn set_width(&mut self, width: u16) {
+        self.width = width
+    }
+
     fn height(&self) -> u16 {
         self.height
+    }
+
+    fn set_height(&mut self, height: u16) {
+        self.height = height
     }
 
     fn depth(&self) -> u16 {
@@ -146,13 +195,13 @@ impl CzHeader for CommonHeader {
     }
 
     fn color_block(&self) -> u8 {
-        self.color_block
+        self.unknown
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, io::Error> {
         let mut buf = vec![];
 
-        let magic_bytes = [b'C', b'Z', b'0' + self.version, 0];
+        let magic_bytes = [b'C', b'Z', b'0' + self.version as u8, b'\0'];
         buf.write_all(&magic_bytes)?;
         buf.write_u32::<LittleEndian>(self.length() as u32)?;
         buf.write_u16::<LittleEndian>(self.width())?;
@@ -164,35 +213,7 @@ impl CzHeader for CommonHeader {
     }
 }
 
-pub trait CzImage {
-    type Header;
-
-    /// Create a [crate::CzImage] from bytes
-    fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
-    where
-        Self: Sized;
-
-    /// Save the image as its corresponding CZ# type
-    fn save_as_cz<T: Into<PathBuf>>(&self, path: T) -> Result<(), CzError>;
-
-    /// Get the header for metadata
-    fn header(&self) -> &Self::Header;
-
-    fn header_mut(&mut self) -> &mut Self::Header;
-
-    /// Set the header with its metadata
-    fn set_header(&mut self, header: &Self::Header);
-
-    fn bitmap(&self) -> &Vec<u8>;
-
-    /// Get the raw underlying bitmap for an image
-    fn into_bitmap(self) -> Vec<u8>;
-
-    /// Set the bitmap the image contains
-    fn set_bitmap(&mut self, bitmap: &[u8], width: u16, height: u16);
-}
-
-pub fn parse_colormap<T: Seek + ReadBytesExt + Read>(
+pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     num_colors: usize,
 ) -> Result<Vec<[u8; 4]>, CzError> {
@@ -207,13 +228,20 @@ pub fn parse_colormap<T: Seek + ReadBytesExt + Read>(
     Ok(colormap)
 }
 
-pub fn apply_palette(input: &mut &[u8], palette: &[[u8; 4]]) -> Vec<u8> {
+pub fn apply_palette(
+    input: &[u8],
+    palette: &[[u8; 4]]
+) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {
-        let color = palette[*byte as usize];
-        output_map.extend_from_slice(&color);
+        let color = palette.get(*byte as usize);
+        if let Some(color) = color {
+            output_map.extend_from_slice(color);
+        } else {
+            return Err(CzError::PaletteError)
+        }
     }
 
-    output_map
+    Ok(output_map)
 }

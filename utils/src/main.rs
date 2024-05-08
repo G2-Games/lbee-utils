@@ -8,7 +8,7 @@ fn main() {
 
     let mut total_time = Duration::default();
     let mut num_images = 0;
-    for entry in WalkDir::new("../../test_files/loopers/") {
+    for entry in WalkDir::new("../../test_files/") {
         let entry = entry.unwrap();
         if entry.path().is_dir() {
             continue;
@@ -18,7 +18,7 @@ fn main() {
         let img = match DynamicCz::open(entry.path()) {
             Ok(img) => img,
             Err(err) => {
-                println!("{}: {}", entry.path().file_name().unwrap().to_string_lossy(), err);
+                println!("{}: {:?}", entry.path().file_name().unwrap().to_string_lossy(), err);
                 continue;
             },
         };
