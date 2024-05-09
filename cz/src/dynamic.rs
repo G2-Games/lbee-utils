@@ -1,5 +1,5 @@
 use std::{
-    fs::File, io::{BufReader, Cursor, Read, Seek, SeekFrom, Write}, path::Path
+    fs::{self, File}, io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write}, path::Path
 };
 use byteorder::ReadBytesExt;
 
@@ -22,20 +22,14 @@ impl DynamicCz {
         Self::decode(&mut img_file)
     }
 
-    pub fn save_as_png<P: ?Sized + AsRef<Path>>(&self, path: &P) -> Result<(), png::EncodingError> {
-        let file = std::fs::File::create(path).unwrap();
-        let writer = std::io::BufWriter::new(file);
+    pub fn save_as_png<P: ?Sized + AsRef<Path>>(&self, path: &P) -> Result<(), image::error::EncodingError> {
+        let image = image::RgbaImage::from_raw(
+            self.header_common.width() as u32,
+            self.header_common.height() as u32,
+            self.bitmap.clone()
+        ).unwrap();
 
-        let mut encoder = png::Encoder::new(
-            writer,
-            self.header().width() as u32,
-            self.header().height() as u32,
-        );
-        encoder.set_color(png::ColorType::Rgba);
-        encoder.set_depth(png::BitDepth::Eight);
-        let mut writer = encoder.write_header()?;
-
-        writer.write_image_data(self.bitmap())?; // Save
+        image.save_with_format(path, image::ImageFormat::Png).unwrap();
 
         Ok(())
     }

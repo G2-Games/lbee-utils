@@ -343,10 +343,9 @@ fn compress_lzw(data: &[u8], size: usize, last: String) -> (usize, Vec<u16>, Str
     }
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
-
     let mut element = String::new();
     if last.len() != 0 {
-        element = last.clone()
+        element = last
     }
 
     let mut compressed = Vec::with_capacity(size);
@@ -373,7 +372,7 @@ fn compress_lzw(data: &[u8], size: usize, last: String) -> (usize, Vec<u16>, Str
     let last_element = element;
     if compressed.len() == 0 {
         if last_element.len() != 0 {
-            for c in last_element.bytes() {
+            for c in last_element.chars() {
                 compressed.push(*dictionary.get(&c.to_string()).unwrap());
             }
         }
