@@ -289,6 +289,38 @@ pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
     output_buf
 }
 
+pub fn diff_line<T: CzHeader>(header: &T, input: &[u8]) -> Vec<u8> {
+    let width = header.width() as u32;
+    let height = header.height() as u32;
+
+    let mut data = Vec::with_capacity(input.len());
+
+    let block_height =
+        (f32::ceil(height as f32 / 3.0) as u16) as usize;
+    let pixel_byte_count = header.depth() >> 3;
+    let line_byte_count = (width * pixel_byte_count as u32) as usize;
+
+    let mut curr_line;
+    let mut prev_line: Vec<u8> = Vec::with_capacity(line_byte_count);
+
+    let mut i = 0;
+    for y in 0..height {
+        curr_line = input[i..i + line_byte_count].to_vec();
+        if y % block_height as u32 != 0 {
+            for x in 0..line_byte_count {
+                curr_line[x] -= prev_line[x];
+                prev_line[x] += curr_line[x];
+            }
+        } else {
+            prev_line.clone_from(&curr_line);
+        }
+
+        data.extend_from_slice(&curr_line);
+        i += line_byte_count;
+    }
+
+    data
+}
 
 pub fn compress(
     data: &[u8],

@@ -63,9 +63,6 @@ impl DynamicCz {
             CzVersion::CZ5 => unimplemented!(),
         };
 
-        let mut file = File::create("raw1").unwrap();
-        file.write_all(&bitmap).unwrap();
-
         let image_size = header_common.width() as usize * header_common.height() as usize;
         if bitmap.len() != image_size * (header_common.depth() >> 3) as usize {
             // If the bitmap is smaller or larger than the image size, it is likely wrong
@@ -109,7 +106,7 @@ impl DynamicCz {
             CzVersion::CZ0 => cz0::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ1 => cz1::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ2 => todo!(),
-            CzVersion::CZ3 => todo!(),
+            CzVersion::CZ3 => cz3::encode(&mut out_file, &output_bitmap, &self.header_common)?,
             CzVersion::CZ4 => todo!(),
             CzVersion::CZ5 => todo!(),
         }
