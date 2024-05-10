@@ -1,6 +1,6 @@
 //! Shared types and traits between CZ# files
 
-use std::io::{self, Read, Seek, Write};
+use std::{collections::HashMap, io::{self, Read, Seek, Write}};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
@@ -339,10 +339,19 @@ pub fn apply_palette(
 
 pub fn rgba_to_indexed(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
+    let mut cache = HashMap::new();
 
     for rgba in input.windows(4).step_by(4) {
-        let index = palette.iter().position(|e| e == rgba).unwrap_or_default();
-        output_map.push(index as u8);
+        let value = match cache.get(rgba) {
+            Some(val) => *val,
+            None => {
+                let value = palette.iter().position(|e| e == rgba).unwrap_or_default() as u8;
+                cache.insert(rgba, value);
+                value
+            }
+        };
+
+        output_map.push(value)
     }
 
     Ok(output_map)

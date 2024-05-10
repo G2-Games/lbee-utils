@@ -303,7 +303,7 @@ pub fn compress(
 
     let mut offset = 0;
     let mut count = 0;
-    let mut last = String::new();
+    let mut last = Vec::new();
 
     let mut output_buf: Vec<u8> = vec![];
     let mut output_info = CompressionInfo {
@@ -335,15 +335,15 @@ pub fn compress(
     (output_buf, output_info)
 }
 
-fn compress_lzw(data: &[u8], size: usize, last: String) -> (usize, Vec<u16>, String) {
+fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Vec<u8>) {
     let mut count = 0;
     let mut dictionary = HashMap::new();
-    for i in 0..256 {
-        dictionary.insert(i.to_string(), i as u16);
+    for i in 0..=255 {
+        dictionary.insert(vec![i], i as u16);
     }
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
-    let mut element = String::new();
+    let mut element = Vec::new();
     if last.len() != 0 {
         element = last
     }
@@ -351,14 +351,14 @@ fn compress_lzw(data: &[u8], size: usize, last: String) -> (usize, Vec<u16>, Str
     let mut compressed = Vec::with_capacity(size);
     for c in data {
         let mut entry = element.clone();
-        entry.push_str(&c.to_string());
+        entry.push(*c);
 
         if dictionary.get(&entry).is_some() {
             element = entry
         } else {
             compressed.push(*dictionary.get(&element).unwrap());
             dictionary.insert(entry, dictionary_count);
-            element = c.to_string();
+            element = vec![*c];
             dictionary_count += 1;
         }
 
@@ -372,16 +372,16 @@ fn compress_lzw(data: &[u8], size: usize, last: String) -> (usize, Vec<u16>, Str
     let last_element = element;
     if compressed.len() == 0 {
         if last_element.len() != 0 {
-            for c in last_element.chars() {
-                compressed.push(*dictionary.get(&c.to_string()).unwrap());
+            for c in last_element {
+                compressed.push(*dictionary.get(&vec![c]).unwrap());
             }
         }
-        return (count, compressed, String::new())
+        return (count, compressed, Vec::new())
     } else if compressed.len() < size {
         if last_element.len() != 0 {
             compressed.push(*dictionary.get(&last_element).unwrap());
         }
-        return (count, compressed, String::new())
+        return (count, compressed, Vec::new())
     }
 
     (count, compressed, last_element)
