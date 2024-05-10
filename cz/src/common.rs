@@ -58,7 +58,7 @@ impl TryFrom<u8> for CzVersion {
 }
 
 pub trait CzHeader {
-    fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
+    fn from_bytes<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized;
 
@@ -122,8 +122,29 @@ pub struct CommonHeader {
     unknown: u8,
 }
 
+impl CommonHeader {
+    pub fn new(
+        version: CzVersion,
+        width: u16,
+        height: u16,
+    ) -> Self {
+        Self {
+            version,
+            length: 15,
+            width,
+            height,
+            depth: 32,
+            unknown: 0
+        }
+    }
+
+    pub fn set_length(&mut self, length: u32) {
+        self.length = length
+    }
+}
+
 impl CzHeader for CommonHeader {
-    fn new<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
+    fn from_bytes<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized,
     {
@@ -243,7 +264,37 @@ pub struct ExtendedHeader {
 }
 
 impl ExtendedHeader {
-    pub fn new<T: Seek + ReadBytesExt + Read>(
+    pub fn new(
+        crop_width: u16,
+        crop_height: u16,
+        bounds_width: u16,
+        bounds_height: u16,
+    ) -> Self {
+        ExtendedHeader {
+            unknown_1: [0u8; 5],
+            crop_width,
+            crop_height,
+            bounds_width,
+            bounds_height,
+            offset_width: None,
+            offset_height: None,
+            unknown_2: None
+        }
+    }
+
+    pub fn with_offset(
+        mut self,
+        offset_width: u16,
+        offset_height: u16
+    ) -> Self {
+        self.offset_width = Some(offset_width);
+        self.offset_height = Some(offset_height);
+        self.unknown_2 = Some(0);
+
+        self
+    }
+
+    pub fn from_bytes<T: Seek + ReadBytesExt + Read>(
         input: &mut T,
         common_header: &CommonHeader
     ) -> Result<Self, CzError> {

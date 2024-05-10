@@ -21,7 +21,7 @@ pub fn encode<T: WriteBytesExt + Write>(
     output: &mut T,
     bitmap: &[u8]
 ) -> Result<(), CzError> {
-    let (compressed_data, compressed_info) = compress(bitmap, 65277);
+    let (compressed_data, compressed_info) = compress(bitmap, 0xFEFD);
 
     dbg!(&compressed_info);
 

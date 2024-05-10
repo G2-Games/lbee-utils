@@ -24,7 +24,7 @@ pub fn encode<T: WriteBytesExt + Write, H: CzHeader>(
 ) -> Result<(), CzError> {
     let bitmap = diff_line(header, bitmap);
 
-    let (compressed_data, compressed_info) = compress(&bitmap, 65277);
+    let (compressed_data, compressed_info) = compress(&bitmap, 0xFEFD);
 
     compressed_info.write_into(output)?;
 

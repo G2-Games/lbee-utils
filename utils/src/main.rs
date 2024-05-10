@@ -1,11 +1,23 @@
-use cz::dynamic::DynamicCz;
+use cz::{common::{CzVersion, ExtendedHeader}, dynamic::DynamicCz};
 
 fn main() {
-    let img = DynamicCz::open("font72.cz1").unwrap();
+    let mio = image::open("mio_inverted.png").unwrap();
+    let mio = mio.to_rgba8();
 
-    img.save_as_cz("test.cz1").unwrap();
-    img.save_as_png("test1.png").unwrap();
+    let cz_mio =
+        DynamicCz::from_raw(
+            CzVersion::CZ3,
+            mio.width() as u16,
+            mio.height() as u16,
+            mio.into_raw()
+        )
+        .with_extended_header(
+            ExtendedHeader::new(1280, 960, 1280, 960)
+        );
 
-    let img2 = DynamicCz::open("test.cz1").unwrap();
-    img2.save_as_png("test2.png").unwrap();
+    cz_mio.save_as_cz("test1.cz3").unwrap();
+
+    let img = DynamicCz::open("test1.cz3").unwrap();
+
+    img.save_as_png("test.png").unwrap();
 }

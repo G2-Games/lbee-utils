@@ -33,15 +33,53 @@ impl DynamicCz {
 
         Ok(())
     }
+
+    pub fn from_raw(
+        version: CzVersion,
+        width: u16,
+        height: u16,
+        bitmap: Vec<u8>,
+    ) -> Self {
+        let header_common = CommonHeader::new(
+            version,
+            width,
+            height
+        );
+
+        Self {
+            header_common,
+            header_extended: None,
+            palette: None,
+            bitmap,
+        }
+    }
+
+    pub fn with_header(mut self, header: CommonHeader) -> Self {
+        self.header_common = header;
+
+        self
+    }
+
+    pub fn with_extended_header(mut self, ext_header: ExtendedHeader) -> Self {
+        if ext_header.offset_width.is_none() {
+            self.header_common.set_length(28)
+        } else {
+            self.header_common.set_length(36)
+        }
+
+        self.header_extended = Some(ext_header);
+
+        self
+    }
 }
 
 impl DynamicCz {
     pub fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
         // Get the header common to all CZ images
-        let header_common = CommonHeader::new(input)?;
+        let header_common = CommonHeader::from_bytes(input)?;
         let mut header_extended = None;
         if header_common.length() > 15 && header_common.version() != CzVersion::CZ2 {
-            header_extended = Some(ExtendedHeader::new(input, &header_common)?);
+            header_extended = Some(ExtendedHeader::from_bytes(input, &header_common)?);
         }
         input.seek(SeekFrom::Start(header_common.length() as u64))?;
 

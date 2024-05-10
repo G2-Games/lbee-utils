@@ -334,7 +334,7 @@ pub fn compress(
     let mut part_data;
 
     let mut offset = 0;
-    let mut count = 0;
+    let mut count;
     let mut last = Vec::new();
 
     let mut output_buf: Vec<u8> = vec![];
@@ -360,6 +360,13 @@ pub fn compress(
         });
 
         output_info.chunk_count += 1;
+    }
+
+    if output_info.chunk_count == 0 {
+        panic!("No chunks compressed!")
+    } else if output_info.chunk_count != 1 {
+        output_info.chunks[0].size_raw -= 1;
+        output_info.chunks[output_info.chunk_count - 1].size_raw += 1;
     }
 
     output_info.total_size_compressed = output_buf.len() / 2;
