@@ -1,15 +1,16 @@
 # lbee-utils
-A small collection of utilities for exporting and importing assets from Little Busters! English Edition
+A small collection of utilities for exporting and importing assets from Little
+Busters! English Edition
 
 ## Acknowledgments
-The implementations for compression and decompression of CZ1 and CZ3 were
-derived from [GARbro](https://github.com/morkt/GARbro/). The implementation
-of compression and decompression for CZ2 was derived from the implementation
-in [LuckSystem](https://github.com/wetor/LuckSystem). This project would not
-have been possible without their amazing work.
+The implementations for decompression of CZ1, CZ3, and CZ4 were derived from
+[GARbro](https://github.com/morkt/GARbro/). The implementation of decompression
+for CZ2, and compression of CZ1, CZ3, and CZ4 was derived from the
+implementation in [LuckSystem](https://github.com/wetor/LuckSystem).
+This project would not have been possible without their amazing work.
 
 ## Specifications and Info
-Each `CZ#` file starts with a header. The first 14 (`0x0E`) bytes of the header 
+Each `CZ#` file starts with a header. The first 14 (`0x0E`) bytes of the header
 are common to all `CZ#` files. The data which come after that are specific
 to each format, although several `CZ#` formats do share the same layout.
 
