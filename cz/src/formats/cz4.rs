@@ -1,11 +1,14 @@
-use std::io::{Read, Seek, SeekFrom};
 use byteorder::ReadBytesExt;
 use image::RgbaImage;
+use std::io::{Read, Seek, SeekFrom};
 
 use crate::common::{CommonHeader, CzError, CzHeader};
 use crate::compression::{decompress, get_chunk_info};
 
-pub fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T, header: &CommonHeader) -> Result<Vec<u8>, CzError> {
+pub fn decode<T: Seek + ReadBytesExt + Read>(
+    bytes: &mut T,
+    header: &CommonHeader,
+) -> Result<Vec<u8>, CzError> {
     let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
@@ -24,10 +27,7 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T, header: &CommonHeade
     Ok(picture.into_raw())
 }
 
-pub fn line_diff_cz4(
-    picture: &mut RgbaImage,
-    pixel_byte_count: usize, data: &[u8]
-) {
+pub fn line_diff_cz4(picture: &mut RgbaImage, pixel_byte_count: usize, data: &[u8]) {
     let width = picture.width();
     let height = picture.height();
     let block_height = (f32::ceil(height as f32 / 3.0) as u16) as u32;

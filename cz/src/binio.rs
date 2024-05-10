@@ -17,14 +17,6 @@ impl BitIO {
         self.byte_offset
     }
 
-    pub fn bit_offset(&self) -> usize {
-        self.bit_offset
-    }
-
-    pub fn into_vec(self) -> Vec<u8> {
-        self.data
-    }
-
     pub fn read_bit(&mut self, bit_len: usize) -> u64 {
         //print!("{}: ", bit_len);
         if bit_len > 8 * 8 {
@@ -37,8 +29,7 @@ impl BitIO {
 
         let mut result = 0;
         for i in 0..bit_len {
-            let bit_value =
-                ((self.data[self.byte_offset] as usize >> self.bit_offset) & 1) as u64;
+            let bit_value = ((self.data[self.byte_offset] as usize >> self.bit_offset) & 1) as u64;
             self.bit_offset += 1;
 
             if self.bit_offset == 8 {

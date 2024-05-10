@@ -1,6 +1,9 @@
 //! Shared types and traits between CZ# files
 
-use std::{collections::HashMap, io::{self, Read, Seek, Write}};
+use std::{
+    collections::HashMap,
+    io::{self, Read, Seek, Write},
+};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
@@ -66,7 +69,10 @@ pub trait CzHeader {
     fn common(&self) -> &CommonHeader;
 
     /// Turn the header into bytes equivalent to the original header from the file
-    fn write_into<T: Seek + WriteBytesExt + Write>(&self, output: &mut T) -> Result<usize, io::Error>;
+    fn write_into<T: Seek + WriteBytesExt + Write>(
+        &self,
+        output: &mut T,
+    ) -> Result<usize, io::Error>;
 
     /// The version of the image
     fn version(&self) -> CzVersion;
@@ -123,18 +129,14 @@ pub struct CommonHeader {
 }
 
 impl CommonHeader {
-    pub fn new(
-        version: CzVersion,
-        width: u16,
-        height: u16,
-    ) -> Self {
+    pub fn new(version: CzVersion, width: u16, height: u16) -> Self {
         Self {
             version,
             length: 15,
             width,
             height,
             depth: 32,
-            unknown: 0
+            unknown: 0,
         }
     }
 
@@ -264,29 +266,34 @@ pub struct ExtendedHeader {
 }
 
 impl ExtendedHeader {
-    pub fn new(
-        crop_width: u16,
-        crop_height: u16,
-        bounds_width: u16,
-        bounds_height: u16,
-    ) -> Self {
+    pub fn new() -> Self {
         ExtendedHeader {
             unknown_1: [0u8; 5],
-            crop_width,
-            crop_height,
-            bounds_width,
-            bounds_height,
+            crop_width: 0,
+            crop_height: 0,
+            bounds_width: 0,
+            bounds_height: 0,
             offset_width: None,
             offset_height: None,
-            unknown_2: None
+            unknown_2: None,
         }
     }
 
-    pub fn with_offset(
-        mut self,
-        offset_width: u16,
-        offset_height: u16
-    ) -> Self {
+    pub fn with_crop(mut self, crop_width: u16, crop_height: u16) -> Self {
+        self.crop_width = crop_width;
+        self.crop_height = crop_height;
+
+        self
+    }
+
+    pub fn with_bounds(mut self, bounds_height: u16, bounds_width: u16) -> Self {
+        self.bounds_width = bounds_width;
+        self.bounds_height = bounds_height;
+
+        self
+    }
+
+    pub fn with_offset(mut self, offset_width: u16, offset_height: u16) -> Self {
         self.offset_width = Some(offset_width);
         self.offset_height = Some(offset_height);
         self.unknown_2 = Some(0);
@@ -296,7 +303,7 @@ impl ExtendedHeader {
 
     pub fn from_bytes<T: Seek + ReadBytesExt + Read>(
         input: &mut T,
-        common_header: &CommonHeader
+        common_header: &CommonHeader,
     ) -> Result<Self, CzError> {
         let mut unknown_1 = [0u8; 5];
         input.read_exact(&mut unknown_1)?;
@@ -335,7 +342,7 @@ impl ExtendedHeader {
 
     pub fn write_into<T: Seek + WriteBytesExt + Write>(
         &self,
-        output: &mut T
+        output: &mut T,
     ) -> Result<usize, io::Error> {
         let pos = output.stream_position()?;
 
@@ -355,6 +362,12 @@ impl ExtendedHeader {
     }
 }
 
+impl Default for ExtendedHeader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     num_colors: usize,
@@ -370,10 +383,7 @@ pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     Ok(colormap)
 }
 
-pub fn apply_palette(
-    input: &[u8],
-    palette: &[[u8; 4]]
-) -> Result<Vec<u8>, CzError> {
+pub fn apply_palette(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {
@@ -381,7 +391,7 @@ pub fn apply_palette(
         if let Some(color) = color {
             output_map.extend_from_slice(color);
         } else {
-            return Err(CzError::PaletteError)
+            return Err(CzError::PaletteError);
         }
     }
 

@@ -1,12 +1,12 @@
-use std::io::{Read, Write, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use crate::common::{CommonHeader, CzError, CzHeader};
 use crate::compression::{compress, decompress, diff_line, get_chunk_info, line_diff};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(
     bytes: &mut T,
-    header: &CommonHeader
+    header: &CommonHeader,
 ) -> Result<Vec<u8>, CzError> {
     let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;

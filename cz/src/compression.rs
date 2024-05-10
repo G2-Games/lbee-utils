@@ -1,6 +1,6 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     io::{Read, Seek, Write},
 };
 
@@ -18,7 +18,7 @@ pub struct ChunkInfo {
 }
 
 /// A CZ# file's information about compression chunks
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct CompressionInfo {
     /// Number of compression chunks
     pub chunk_count: usize,
@@ -34,18 +34,6 @@ pub struct CompressionInfo {
 
     /// Length of the compression chunk info
     pub length: usize,
-}
-
-impl Default for CompressionInfo {
-    fn default() -> Self {
-        Self {
-            chunk_count: 0,
-            total_size_compressed: 0,
-            total_size_raw: 0,
-            chunks: Vec::new(),
-            length: 0
-        }
-    }
 }
 
 impl CompressionInfo {
@@ -201,12 +189,7 @@ fn get_offset(input: &[u8], src: usize) -> usize {
     (((input[src] as usize) | (input[src + 1] as usize) << 8) - 0x101) * 2
 }
 
-fn copy_range(
-    bitmap: &mut Vec<u8>,
-    input: &[u8],
-    src: usize,
-    dst: usize
-) -> usize {
+fn copy_range(bitmap: &mut Vec<u8>, input: &[u8], src: usize, dst: usize) -> usize {
     let mut dst = dst;
     let start_pos = dst;
 
@@ -249,8 +232,7 @@ pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
     let height = header.height() as u32;
     let mut output_buf = data.to_vec();
 
-    let block_height =
-        (f32::ceil(height as f32 / 3.0) as u16) as usize;
+    let block_height = (f32::ceil(height as f32 / 3.0) as u16) as usize;
     let pixel_byte_count = header.depth() >> 3;
     let line_byte_count = (width * pixel_byte_count as u32) as usize;
 
@@ -278,7 +260,7 @@ pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
                     curr_line[x],
                     curr_line[x + 1],
                     curr_line[x + 2],
-                    0xFF
+                    0xFF,
                 ])
             }
         }
@@ -295,8 +277,7 @@ pub fn diff_line<T: CzHeader>(header: &T, input: &[u8]) -> Vec<u8> {
 
     let mut data = Vec::with_capacity(input.len());
 
-    let block_height =
-        (f32::ceil(height as f32 / 3.0) as u16) as usize;
+    let block_height = (f32::ceil(height as f32 / 3.0) as u16) as usize;
     let pixel_byte_count = header.depth() >> 3;
     let line_byte_count = (width * pixel_byte_count as u32) as usize;
 
@@ -308,8 +289,8 @@ pub fn diff_line<T: CzHeader>(header: &T, input: &[u8]) -> Vec<u8> {
         curr_line = input[i..i + line_byte_count].to_vec();
         if y % block_height as u32 != 0 {
             for x in 0..line_byte_count {
-                curr_line[x] -= prev_line[x];
-                prev_line[x] += curr_line[x];
+                curr_line[x] = curr_line[x].wrapping_sub(prev_line[x]);
+                prev_line[x] = prev_line[x].wrapping_add(curr_line[x]);
             }
         } else {
             prev_line.clone_from(&curr_line);
@@ -322,10 +303,7 @@ pub fn diff_line<T: CzHeader>(header: &T, input: &[u8]) -> Vec<u8> {
     data
 }
 
-pub fn compress(
-    data: &[u8],
-    size: usize,
-) -> (Vec<u8>, CompressionInfo) {
+pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     let mut size = size;
     if size == 0 {
         size = 0xFEFD
@@ -346,17 +324,17 @@ pub fn compress(
     loop {
         (count, part_data, last) = compress_lzw(&data[offset..], size, last);
         if count == 0 {
-            break
+            break;
         }
         offset += count;
 
         for d in &part_data {
-            output_buf.write(&d.to_le_bytes()).unwrap();
+            output_buf.write_all(&d.to_le_bytes()).unwrap();
         }
 
         output_info.chunks.push(ChunkInfo {
             size_compressed: part_data.len(),
-            size_raw: count
+            size_raw: count,
         });
 
         output_info.chunk_count += 1;
@@ -383,7 +361,7 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
     let mut element = Vec::new();
-    if last.len() != 0 {
+    if !last.is_empty() {
         element = last
     }
 
@@ -392,7 +370,7 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
         let mut entry = element.clone();
         entry.push(*c);
 
-        if dictionary.get(&entry).is_some() {
+        if dictionary.contains_key(&entry) {
             element = entry
         } else {
             compressed.push(*dictionary.get(&element).unwrap());
@@ -404,23 +382,23 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
         count += 1;
 
         if size > 0 && compressed.len() == size {
-            break
+            break;
         }
     }
 
     let last_element = element;
-    if compressed.len() == 0 {
-        if last_element.len() != 0 {
+    if !compressed.is_empty() {
+        if !last_element.is_empty() {
             for c in last_element {
                 compressed.push(*dictionary.get(&vec![c]).unwrap());
             }
         }
-        return (count, compressed, Vec::new())
+        return (count, compressed, Vec::new());
     } else if compressed.len() < size {
-        if last_element.len() != 0 {
+        if !last_element.is_empty() {
             compressed.push(*dictionary.get(&last_element).unwrap());
         }
-        return (count, compressed, Vec::new())
+        return (count, compressed, Vec::new());
     }
 
     (count, compressed, last_element)

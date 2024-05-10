@@ -1,10 +1,15 @@
-use std::{
-    fs::{self, File}, io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write}, path::Path
-};
 use byteorder::ReadBytesExt;
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    path::Path,
+};
 
 use crate::{
-    common::{apply_palette, get_palette, rgba_to_indexed, CommonHeader, CzError, CzHeader, CzVersion, ExtendedHeader},
+    common::{
+        apply_palette, get_palette, rgba_to_indexed, CommonHeader, CzError, CzHeader, CzVersion,
+        ExtendedHeader,
+    },
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
@@ -22,14 +27,20 @@ impl DynamicCz {
         Self::decode(&mut img_file)
     }
 
-    pub fn save_as_png<P: ?Sized + AsRef<Path>>(&self, path: &P) -> Result<(), image::error::EncodingError> {
+    pub fn save_as_png<P: ?Sized + AsRef<Path>>(
+        &self,
+        path: &P,
+    ) -> Result<(), image::error::EncodingError> {
         let image = image::RgbaImage::from_raw(
             self.header_common.width() as u32,
             self.header_common.height() as u32,
-            self.bitmap.clone()
-        ).unwrap();
+            self.bitmap.clone(),
+        )
+        .unwrap();
 
-        image.save_with_format(path, image::ImageFormat::Png).unwrap();
+        image
+            .save_with_format(path, image::ImageFormat::Png)
+            .unwrap();
 
         Ok(())
     }
@@ -38,13 +49,9 @@ impl DynamicCz {
         version: CzVersion,
         width: u16,
         height: u16,
-        bitmap: Vec<u8>,
+        bitmap: Vec<u8>
     ) -> Self {
-        let header_common = CommonHeader::new(
-            version,
-            width,
-            height
-        );
+        let header_common = CommonHeader::new(version, width, height);
 
         Self {
             header_common,
@@ -61,10 +68,10 @@ impl DynamicCz {
     }
 
     pub fn with_extended_header(mut self, ext_header: ExtendedHeader) -> Self {
-        if ext_header.offset_width.is_none() {
-            self.header_common.set_length(28)
-        } else {
+        if ext_header.offset_width.is_some() {
             self.header_common.set_length(36)
+        } else {
+            self.header_common.set_length(28)
         }
 
         self.header_extended = Some(ext_header);
@@ -104,7 +111,7 @@ impl DynamicCz {
         let image_size = header_common.width() as usize * header_common.height() as usize;
         if bitmap.len() != image_size * (header_common.depth() >> 3) as usize {
             // If the bitmap is smaller or larger than the image size, it is likely wrong
-            return Err(CzError::Corrupt)
+            return Err(CzError::Corrupt);
         }
 
         if let Some(palette) = &palette {
@@ -119,8 +126,11 @@ impl DynamicCz {
         })
     }
 
-    pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
-        let mut out_file = File::create(path.into())?;
+    pub fn save_as_cz<T: Into<std::path::PathBuf>>(
+        &self,
+        path: T
+    ) -> Result<(), CzError> {
+        let mut out_file = BufWriter::new(File::create(path.into())?);
 
         self.header_common.write_into(&mut out_file)?;
 
@@ -131,13 +141,13 @@ impl DynamicCz {
         let output_bitmap;
         match &self.palette {
             Some(pal) if self.header_common.depth() <= 8 => {
-                output_bitmap = rgba_to_indexed(&self.bitmap(), &pal)?;
+                output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
 
                 for rgba in pal {
                     out_file.write_all(rgba)?;
                 }
-            },
-            _ => output_bitmap = self.bitmap().clone()
+            }
+            _ => output_bitmap = self.bitmap().clone(),
         }
 
         match self.header_common.version() {
@@ -161,7 +171,7 @@ impl DynamicCz {
     }
 
     pub fn set_header(&mut self, header: &CommonHeader) {
-        self.header_common = header.to_owned()
+        header.clone_into(&mut self.header_common)
     }
 
     pub fn bitmap(&self) -> &Vec<u8> {
@@ -174,7 +184,7 @@ impl DynamicCz {
 
     pub fn set_bitmap(&mut self, bitmap: Vec<u8>, width: u16, height: u16) -> Result<(), CzError> {
         if bitmap.len() != width as usize * height as usize {
-            return Err(CzError::BitmapFormat)
+            return Err(CzError::BitmapFormat);
         }
 
         self.bitmap = bitmap;
