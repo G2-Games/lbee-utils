@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::binio::BitIO;
-use crate::common::{CzError, CzHeader};
+use crate::common::CzError;
 
 /// The size of compressed data in each chunk
 #[derive(Debug, Clone, Copy)]
@@ -227,82 +227,6 @@ fn copy_one(input: &[u8], src: usize) -> u8 {
     }
 }
 
-pub fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
-    let width = header.width() as u32;
-    let height = header.height() as u32;
-    let mut output_buf = data.to_vec();
-
-    let block_height = (f32::ceil(height as f32 / 3.0) as u16) as usize;
-    let pixel_byte_count = header.depth() >> 3;
-    let line_byte_count = (width * pixel_byte_count as u32) as usize;
-
-    let mut curr_line: Vec<u8>;
-    let mut prev_line: Vec<u8> = Vec::with_capacity(line_byte_count);
-
-    let mut i = 0;
-    for y in 0..height {
-        curr_line = data[i..i + line_byte_count].to_vec();
-
-        if y % block_height as u32 != 0 {
-            for x in 0..line_byte_count {
-                curr_line[x] = u8::wrapping_add(curr_line[x], prev_line[x])
-            }
-        }
-
-        prev_line.clone_from(&curr_line);
-        if pixel_byte_count == 4 {
-            output_buf[i..i + line_byte_count].copy_from_slice(&curr_line);
-        } else if pixel_byte_count == 3 {
-            for x in 0..line_byte_count {
-                let loc = ((y * width) as usize + x) * 4;
-
-                output_buf[loc..loc + 4].copy_from_slice(&[
-                    curr_line[x],
-                    curr_line[x + 1],
-                    curr_line[x + 2],
-                    0xFF,
-                ])
-            }
-        }
-
-        i += line_byte_count;
-    }
-
-    output_buf
-}
-
-pub fn diff_line<T: CzHeader>(header: &T, input: &[u8]) -> Vec<u8> {
-    let width = header.width() as u32;
-    let height = header.height() as u32;
-
-    let mut data = Vec::with_capacity(input.len());
-
-    let block_height = (f32::ceil(height as f32 / 3.0) as u16) as usize;
-    let pixel_byte_count = header.depth() >> 3;
-    let line_byte_count = (width * pixel_byte_count as u32) as usize;
-
-    let mut curr_line;
-    let mut prev_line: Vec<u8> = Vec::with_capacity(line_byte_count);
-
-    let mut i = 0;
-    for y in 0..height {
-        curr_line = input[i..i + line_byte_count].to_vec();
-        if y % block_height as u32 != 0 {
-            for x in 0..line_byte_count {
-                curr_line[x] = curr_line[x].wrapping_sub(prev_line[x]);
-                prev_line[x] = prev_line[x].wrapping_add(curr_line[x]);
-            }
-        } else {
-            prev_line.clone_from(&curr_line);
-        }
-
-        data.extend_from_slice(&curr_line);
-        i += line_byte_count;
-    }
-
-    data
-}
-
 pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     let mut size = size;
     if size == 0 {
@@ -354,22 +278,21 @@ pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
 
 fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Vec<u8>) {
     let mut count = 0;
-    let mut dictionary = HashMap::new();
+    let mut dictionary = HashMap::with_capacity(size);
     for i in 0..=255 {
         dictionary.insert(vec![i], i as u16);
     }
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
-    let mut element = Vec::new();
+    let mut element = Vec::with_capacity(512);
     if !last.is_empty() {
         element = last
     }
 
-    let mut compressed = Vec::with_capacity(size);
+    let mut compressed = Vec::new();
     for c in data {
         let mut entry = element.clone();
         entry.push(*c);
-
         if dictionary.contains_key(&entry) {
             element = entry
         } else {

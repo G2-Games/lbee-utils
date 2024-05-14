@@ -1,4 +1,5 @@
 use byteorder::ReadBytesExt;
+use image::Rgba;
 use std::{
     fs::File,
     io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
@@ -16,7 +17,7 @@ use crate::{
 pub struct DynamicCz {
     header_common: CommonHeader,
     header_extended: Option<ExtendedHeader>,
-    palette: Option<Vec<[u8; 4]>>,
+    palette: Option<Vec<Rgba<u8>>>,
     bitmap: Vec<u8>,
 }
 
@@ -81,7 +82,9 @@ impl DynamicCz {
 }
 
 impl DynamicCz {
-    pub fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
+    pub fn decode<T: Seek + ReadBytesExt + Read>(
+        input: &mut T
+    ) -> Result<Self, CzError> {
         // Get the header common to all CZ images
         let header_common = CommonHeader::from_bytes(input)?;
         let mut header_extended = None;
@@ -144,7 +147,7 @@ impl DynamicCz {
                 output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
 
                 for rgba in pal {
-                    out_file.write_all(rgba)?;
+                    out_file.write_all(&rgba.0)?;
                 }
             }
             _ => output_bitmap = self.bitmap().clone(),

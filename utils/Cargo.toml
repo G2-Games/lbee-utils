@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 cz = { path = "../cz" }
+fontdue = { version = "0.8.0", features = ["parallel"] }
 image = "0.25.1"
 walkdir = "2.5.0"

@@ -6,6 +6,7 @@ use std::{
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use image::Rgba;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -371,25 +372,25 @@ impl Default for ExtendedHeader {
 pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     num_colors: usize,
-) -> Result<Vec<[u8; 4]>, CzError> {
+) -> Result<Vec<Rgba<u8>>, CzError> {
     let mut colormap = Vec::with_capacity(num_colors);
     let mut rgba_buf = [0u8; 4];
 
     for _ in 0..num_colors {
         input.read_exact(&mut rgba_buf)?;
-        colormap.push(rgba_buf);
+        colormap.push(rgba_buf.into());
     }
 
     Ok(colormap)
 }
 
-pub fn apply_palette(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzError> {
+pub fn apply_palette(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {
         let color = palette.get(*byte as usize);
         if let Some(color) = color {
-            output_map.extend_from_slice(color);
+            output_map.extend_from_slice(&color.0);
         } else {
             return Err(CzError::PaletteError);
         }
@@ -398,7 +399,7 @@ pub fn apply_palette(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzErr
     Ok(output_map)
 }
 
-pub fn rgba_to_indexed(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzError> {
+pub fn rgba_to_indexed(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
     let mut cache = HashMap::new();
 
@@ -406,7 +407,7 @@ pub fn rgba_to_indexed(input: &[u8], palette: &[[u8; 4]]) -> Result<Vec<u8>, CzE
         let value = match cache.get(rgba) {
             Some(val) => *val,
             None => {
-                let value = palette.iter().position(|e| e == rgba).unwrap_or_default() as u8;
+                let value = palette.iter().position(|e| e.0 == rgba).unwrap_or_default() as u8;
                 cache.insert(rgba, value);
                 value
             }
