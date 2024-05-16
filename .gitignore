@@ -17,5 +17,6 @@ Cargo.lock
 *.CZ*
 *.png
 *.ttf
+*.otf
 
 test_files/*

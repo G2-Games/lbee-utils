@@ -384,7 +384,10 @@ pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     Ok(colormap)
 }
 
-pub fn apply_palette(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, CzError> {
+pub fn apply_palette(
+    input: &[u8],
+    palette: &[Rgba<u8>]
+) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {
@@ -392,6 +395,7 @@ pub fn apply_palette(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, CzEr
         if let Some(color) = color {
             output_map.extend_from_slice(&color.0);
         } else {
+            dbg!(byte);
             return Err(CzError::PaletteError);
         }
     }
@@ -399,7 +403,10 @@ pub fn apply_palette(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, CzEr
     Ok(output_map)
 }
 
-pub fn rgba_to_indexed(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, CzError> {
+pub fn rgba_to_indexed(
+    input: &[u8],
+    palette: &[Rgba<u8>]
+) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
     let mut cache = HashMap::new();
 
@@ -417,4 +424,14 @@ pub fn rgba_to_indexed(input: &[u8], palette: &[Rgba<u8>]) -> Result<Vec<u8>, Cz
     }
 
     Ok(output_map)
+}
+
+pub fn default_palette() -> Vec<Rgba<u8>> {
+    let mut colormap = Vec::new();
+
+    for i in 0..=0xFF {
+        colormap.push(Rgba([0xFF, 0xFF, 0xFF, i]))
+    }
+
+    colormap
 }
