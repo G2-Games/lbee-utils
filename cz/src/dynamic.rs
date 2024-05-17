@@ -8,12 +8,16 @@ use std::{
 
 use crate::{
     common::{
-        apply_palette, get_palette, rgba_to_indexed, CommonHeader, CzError, CzHeader, CzVersion,
-        ExtendedHeader,
+        apply_palette, get_palette, indexed_gen_palette,
+        rgba_to_indexed, CommonHeader, CzError, CzHeader,
+        CzVersion, ExtendedHeader
     },
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
+/// A CZ# interface which abstracts the CZ# generic file interface for
+/// convenience.
+#[derive(Debug)]
 pub struct DynamicCz {
     header_common: CommonHeader,
     header_extended: Option<ExtendedHeader>,
@@ -22,67 +26,19 @@ pub struct DynamicCz {
 }
 
 impl DynamicCz {
+    /// Open a CZ# file from a path
     pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<Self, CzError> {
         let mut img_file = BufReader::new(std::fs::File::open(path)?);
 
         Self::decode(&mut img_file)
     }
 
-    pub fn save_as_png<P: ?Sized + AsRef<Path>>(
-        &self,
-        path: &P,
-    ) -> Result<(), image::error::EncodingError> {
-        let image = image::RgbaImage::from_raw(
-            self.header_common.width() as u32,
-            self.header_common.height() as u32,
-            self.bitmap.clone(),
-        )
-        .unwrap();
-
-        image
-            .save_with_format(path, image::ImageFormat::Png)
-            .unwrap();
-
-        Ok(())
-    }
-
-    pub fn from_raw(
-        version: CzVersion,
-        width: u16,
-        height: u16,
-        bitmap: Vec<u8>
-    ) -> Self {
-        let header_common = CommonHeader::new(version, width, height);
-
-        Self {
-            header_common,
-            header_extended: None,
-            palette: None,
-            bitmap,
-        }
-    }
-
-    pub fn with_header(mut self, header: CommonHeader) -> Self {
-        self.header_common = header;
-
-        self
-    }
-
-    pub fn with_extended_header(mut self, ext_header: ExtendedHeader) -> Self {
-        if ext_header.offset_width.is_some() {
-            self.header_common.set_length(36)
-        } else {
-            self.header_common.set_length(28)
-        }
-
-        self.header_extended = Some(ext_header);
-
-        self
-    }
-}
-
-impl DynamicCz {
-    pub fn decode<T: Seek + ReadBytesExt + Read>(
+    /// Decode a CZ# file from anything which implements [`Read`] and [`Seek`]
+    ///
+    /// The input must begin with the
+    /// [magic bytes](https://en.wikipedia.org/wiki/File_format#Magic_number)
+    /// of the file
+    fn decode<T: Seek + ReadBytesExt + Read>(
         input: &mut T
     ) -> Result<Self, CzError> {
         // Get the header common to all CZ images
@@ -117,8 +73,26 @@ impl DynamicCz {
             return Err(CzError::Corrupt);
         }
 
-        if let Some(palette) = &palette {
-            bitmap = apply_palette(&bitmap, palette)?;
+        match header_common.depth() {
+            4 => {
+                todo!()
+            }
+            8 => {
+                if let Some(palette) = &palette {
+                    bitmap = apply_palette(&bitmap, palette)?;
+                } else {
+                    return Err(CzError::PaletteError)
+                }
+            },
+            24 =>  {
+                bitmap = bitmap
+                    .windows(3)
+                    .step_by(3)
+                    .flat_map(|p| [p[0], p[1], p[2], 0xFF])
+                    .collect();
+            }
+            32 => (),
+            _ => panic!()
         }
 
         Ok(Self {
@@ -129,6 +103,9 @@ impl DynamicCz {
         })
     }
 
+    /// Save the `DynamicCz` as a CZ# file. The format saved in is determined
+    /// from the format in the header. Check [`CommonHeader::set_version()`]
+    /// to change the CZ# version.
     pub fn save_as_cz<T: Into<std::path::PathBuf>>(
         &self,
         path: T
@@ -142,15 +119,46 @@ impl DynamicCz {
         }
 
         let output_bitmap;
-        match &self.palette {
-            Some(pal) if self.header_common.depth() <= 8 => {
-                output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
-
-                for rgba in pal {
-                    out_file.write_all(&rgba.0)?;
-                }
+        match self.header_common.depth() {
+            4 => {
+                todo!()
             }
-            _ => output_bitmap = self.bitmap().clone(),
+            8 => {
+                match &self.palette {
+                    Some(pal) if self.header_common.depth() <= 8 => {
+                        output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
+
+                        for rgba in pal {
+                            out_file.write_all(&rgba.0)?;
+                        }
+                    },
+                    // Generate a palette if there is none
+                    None if self.header_common.depth() <= 8 => {
+                        let result = indexed_gen_palette(
+                            self.bitmap(),
+                            self.header()
+                        )?;
+
+                        output_bitmap = result.0;
+                        let palette = result.1;
+
+                        for rgba in palette {
+                            out_file.write_all(&rgba.0)?;
+                        }
+                    },
+                    _ => output_bitmap = self.bitmap().clone(),
+                }
+            },
+            24 => {
+                output_bitmap = self.bitmap
+                    .windows(4)
+                    .step_by(4)
+                    .flat_map(|p| &p[0..3])
+                    .copied()
+                    .collect();
+            },
+            32 => output_bitmap = self.bitmap.clone(),
+            _ => return Err(CzError::Corrupt)
         }
 
         match self.header_common.version() {
@@ -163,6 +171,92 @@ impl DynamicCz {
         }
 
         Ok(())
+    }
+
+    /// Save the CZ# image as a lossless PNG file.
+    ///
+    /// Internally, the [`DynamicCz`] struct operates on 32-bit RGBA values,
+    /// which is the highest encountered in CZ# files, therefore saving them
+    /// as a PNG of the same or better quality is lossless.
+    pub fn save_as_png<P: ?Sized + AsRef<Path>>(
+        &self,
+        path: &P,
+    ) -> Result<(), image::error::EncodingError> {
+        let image = image::RgbaImage::from_raw(
+            self.header_common.width() as u32,
+            self.header_common.height() as u32,
+            self.bitmap.clone(),
+        )
+        .unwrap();
+
+        image
+            .save_with_format(path, image::ImageFormat::Png)
+            .unwrap();
+
+        Ok(())
+    }
+
+    /// Create a CZ# image from RGBA bytes. The bytes *must* be RGBA, as it is
+    /// used internally for operations
+    pub fn from_raw(
+        version: CzVersion,
+        depth: u16,
+        width: u16,
+        height: u16,
+        bitmap: Vec<u8>
+    ) -> Self {
+        let mut header_common = CommonHeader::new(
+            version,
+            width,
+            height
+        );
+        header_common.set_depth(depth);
+
+        Self {
+            header_common,
+            header_extended: None,
+            palette: None,
+            bitmap,
+        }
+    }
+
+    /// Set a specific header for the image, this basica
+    pub fn with_header(mut self, header: CommonHeader) -> Self {
+        self.header_common = header;
+
+        self
+    }
+
+    /// Add an [`ExtendedHeader`] to the image. This header controls things like
+    /// cropping and offsets in the game engine
+    pub fn with_extended_header(mut self, ext_header: ExtendedHeader) -> Self {
+        if ext_header.offset_width.is_some() {
+            self.header_common.set_length(36)
+        } else {
+            self.header_common.set_length(28)
+        }
+
+        self.header_extended = Some(ext_header);
+
+        self
+    }
+
+    /// Retrieve a reference to the palette if it exists, otherwise [`None`]
+    /// is returned
+    pub fn palette(&self) -> &Option<Vec<Rgba<u8>>> {
+        &self.palette
+    }
+
+    /// Retrieve a mutable reference to the palette if it exists, otherwise
+    /// [`None`] is returned
+    pub fn palette_mut(&mut self) -> &mut Option<Vec<Rgba<u8>>> {
+        &mut self.palette
+    }
+
+    /// Remove the image palette, which forces palette regeneration on save
+    /// for bit depths 8 or less
+    pub fn remove_palette(&mut self) {
+        *self.palette_mut() = None
     }
 
     pub fn header(&self) -> &CommonHeader {
@@ -185,16 +279,7 @@ impl DynamicCz {
         self.bitmap
     }
 
-    pub fn set_bitmap(&mut self, bitmap: Vec<u8>, width: u16, height: u16) -> Result<(), CzError> {
-        if bitmap.len() != width as usize * height as usize {
-            return Err(CzError::BitmapFormat);
-        }
-
-        self.bitmap = bitmap;
-
-        self.header_mut().set_width(width);
-        self.header_mut().set_height(height);
-
-        Ok(())
+    pub fn set_bitmap(&mut self, bitmap: Vec<u8>) {
+        self.bitmap = bitmap
     }
 }

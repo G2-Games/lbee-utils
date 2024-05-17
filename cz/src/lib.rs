@@ -4,13 +4,16 @@ mod compression;
 pub mod common;
 pub mod dynamic;
 
-pub mod formats {
-    pub mod cz0;
-    pub mod cz1;
-    pub mod cz2;
-    pub mod cz3;
-    pub mod cz4;
+mod formats {
+    pub(crate) mod cz0;
+    pub(crate) mod cz1;
+    pub(crate) mod cz2;
+    pub(crate) mod cz3;
+    pub(crate) mod cz4;
 }
+
+#[doc(inline)]
+pub use dynamic::DynamicCz;
 
 /*
 #[doc(inline)]

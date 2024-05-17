@@ -63,15 +63,20 @@ fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
         if pixel_byte_count == 4 {
             output_buf[i..i + line_byte_count].copy_from_slice(&curr_line);
         } else if pixel_byte_count == 3 {
-            for x in 0..line_byte_count {
-                let loc = ((y * width) as usize + x) * 4;
+            for x in (0..line_byte_count).step_by(3) {
+                let loc = (y * 3 * width) as usize + x;
 
-                output_buf[loc..loc + 4].copy_from_slice(&[
+                output_buf[loc..loc + 3].copy_from_slice(&[
                     curr_line[x],
                     curr_line[x + 1],
                     curr_line[x + 2],
-                    0xFF,
                 ])
+            }
+        } else if pixel_byte_count == 1 {
+            for x in 0..line_byte_count {
+                let loc = (y * width) as usize + x;
+
+                output_buf[loc] = curr_line[x];
             }
         }
 

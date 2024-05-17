@@ -7,6 +7,7 @@ use std::{
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use image::Rgba;
+use quantizr::Image;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -99,9 +100,7 @@ pub trait CzHeader {
     /// The bit depth of the image (BPP)
     fn depth(&self) -> u16;
 
-    fn set_depth(&mut self) {
-        unimplemented!()
-    }
+    fn set_depth(&mut self, depth: u16);
 
     /// An unknown value?
     fn color_block(&self) -> u8;
@@ -216,6 +215,10 @@ impl CzHeader for CommonHeader {
 
     fn depth(&self) -> u16 {
         self.depth
+    }
+
+    fn set_depth(&mut self, depth: u16) {
+        self.depth = depth
     }
 
     fn color_block(&self) -> u8 {
@@ -384,6 +387,8 @@ pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     Ok(colormap)
 }
 
+/// Take a bitmap of indicies, and map a given palette to it, returning a new
+/// RGBA bitmap
 pub fn apply_palette(
     input: &[u8],
     palette: &[Rgba<u8>]
@@ -395,7 +400,6 @@ pub fn apply_palette(
         if let Some(color) = color {
             output_map.extend_from_slice(&color.0);
         } else {
-            dbg!(byte);
             return Err(CzError::PaletteError);
         }
     }
@@ -424,6 +428,33 @@ pub fn rgba_to_indexed(
     }
 
     Ok(output_map)
+}
+
+pub fn indexed_gen_palette(
+    input: &[u8],
+    header: &CommonHeader,
+) -> Result<(Vec<u8>, Vec<image::Rgba<u8>>), CzError> {
+
+    let image = Image::new(
+        input,
+        header.width() as usize,
+        header.height() as usize
+    ).unwrap();
+
+    let mut opts = quantizr::Options::default();
+    opts.set_max_colors(1 << header.depth()).unwrap();
+
+    let mut result = quantizr::QuantizeResult::quantize(&image, &opts);
+    result.set_dithering_level(0.5).unwrap();
+
+    let mut indicies = vec![0u8; header.width() as usize * header.height() as usize];
+    result.remap_image(&image, indicies.as_mut_slice()).unwrap();
+
+    let palette = result.get_palette();
+
+    let gen_palette = palette.entries.as_slice().iter().map(|c| Rgba([c.r, c.g, c.b, c.a])).collect();
+
+    Ok((indicies, gen_palette))
 }
 
 pub fn default_palette() -> Vec<Rgba<u8>> {
