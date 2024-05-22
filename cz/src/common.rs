@@ -408,9 +408,13 @@ pub fn indexed_gen_palette(
     input: &[u8],
     header: &CommonHeader,
 ) -> Result<(Vec<u8>, Vec<image::Rgba<u8>>), CzError> {
+    let size = (header.width() as u32 * header.height() as u32) * 4;
+
+    let mut buf = vec![0; size as usize];
+    buf[..input.len()].copy_from_slice(&input);
 
     let image = Image::new(
-        input,
+        &buf,
         header.width() as usize,
         header.height() as usize
     ).unwrap();

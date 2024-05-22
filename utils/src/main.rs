@@ -14,7 +14,8 @@ fn main() {
     let mut gallery_cz = DynamicCz::open("24.cz2").unwrap();
     gallery_cz.save_as_png("24.png").unwrap();
 
-    //gallery_cz.header_mut().set_depth(8);
+    gallery_cz.set_bitmap(new_bitmap.into_vec());
+    gallery_cz.header_mut().set_depth(8);
     gallery_cz.remove_palette();
     gallery_cz.header_mut().set_version(CzVersion::CZ2);
     gallery_cz.save_as_cz("24-modified.cz2").unwrap();

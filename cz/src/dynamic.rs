@@ -71,7 +71,7 @@ impl DynamicCz {
         if bitmap.len() != image_size * (header_common.depth() >> 3) as usize {
             // If the bitmap is smaller or larger than the image size, it is likely wrong
             eprintln!("Image is wrong, length is {}, expected {}", bitmap.len(), image_size * (header_common.depth() >> 3) as usize);
-            //return Err(CzError::Corrupt);
+            return Err(CzError::Corrupt);
         }
 
         match header_common.depth() {
