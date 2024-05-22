@@ -62,48 +62,22 @@ impl TryFrom<u8> for CzVersion {
     }
 }
 
-pub trait CzHeader {
-    fn from_bytes<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
-    where
-        Self: Sized;
+impl TryFrom<char> for CzVersion {
+    type Error = &'static str;
 
-    /// The [CommonHeader] header from the image
-    fn common(&self) -> &CommonHeader;
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        let value = match value {
+            '0' => Self::CZ0,
+            '1' => Self::CZ1,
+            '2' => Self::CZ2,
+            '3' => Self::CZ3,
+            '4' => Self::CZ4,
+            '5' => Self::CZ5,
+            _ => return Err("Value is not a valid CZ version"),
+        };
 
-    /// Turn the header into bytes equivalent to the original header from the file
-    fn write_into<T: Seek + WriteBytesExt + Write>(
-        &self,
-        output: &mut T,
-    ) -> Result<usize, io::Error>;
-
-    /// The version of the image
-    fn version(&self) -> CzVersion;
-
-    /// Set the version of the image
-    fn set_version(&mut self, version: CzVersion);
-
-    /// The length of the header in bytes
-    fn length(&self) -> usize;
-
-    /// The width of the image
-    fn width(&self) -> u16;
-
-    /// Set the width of the image
-    fn set_width(&mut self, width: u16);
-
-    /// The height of the image
-    fn height(&self) -> u16;
-
-    /// Set the height of the image
-    fn set_height(&mut self, height: u16);
-
-    /// The bit depth of the image (BPP)
-    fn depth(&self) -> u16;
-
-    fn set_depth(&mut self, depth: u16);
-
-    /// An unknown value?
-    fn color_block(&self) -> u8;
+        Ok(value)
+    }
 }
 
 /// The common first part of a header of a CZ# file
@@ -145,8 +119,8 @@ impl CommonHeader {
     }
 }
 
-impl CzHeader for CommonHeader {
-    fn from_bytes<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
+impl CommonHeader {
+    pub fn from_bytes<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
     where
         Self: Sized,
     {
@@ -181,51 +155,51 @@ impl CzHeader for CommonHeader {
         Ok(header)
     }
 
-    fn common(&self) -> &CommonHeader {
+    pub fn common(&self) -> &CommonHeader {
         self
     }
 
-    fn version(&self) -> CzVersion {
+    pub fn version(&self) -> CzVersion {
         self.version
     }
 
-    fn set_version(&mut self, version: CzVersion) {
+    pub fn set_version(&mut self, version: CzVersion) {
         self.version = version
     }
 
-    fn length(&self) -> usize {
+    pub fn length(&self) -> usize {
         self.length as usize
     }
 
-    fn width(&self) -> u16 {
+    pub fn width(&self) -> u16 {
         self.width
     }
 
-    fn set_width(&mut self, width: u16) {
+    pub fn set_width(&mut self, width: u16) {
         self.width = width
     }
 
-    fn height(&self) -> u16 {
+    pub fn height(&self) -> u16 {
         self.height
     }
 
-    fn set_height(&mut self, height: u16) {
+    pub fn set_height(&mut self, height: u16) {
         self.height = height
     }
 
-    fn depth(&self) -> u16 {
+    pub fn depth(&self) -> u16 {
         self.depth
     }
 
-    fn set_depth(&mut self, depth: u16) {
+    pub fn set_depth(&mut self, depth: u16) {
         self.depth = depth
     }
 
-    fn color_block(&self) -> u8 {
+    pub fn color_block(&self) -> u8 {
         self.unknown
     }
 
-    fn write_into<T: Seek + WriteBytesExt + Write>(
+    pub fn write_into<T: Seek + WriteBytesExt + Write>(
         &self,
         output: &mut T,
     ) -> Result<usize, io::Error> {

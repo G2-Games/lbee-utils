@@ -9,7 +9,7 @@ use std::{
 use crate::{
     common::{
         apply_palette, get_palette, indexed_gen_palette,
-        rgba_to_indexed, CommonHeader, CzError, CzHeader,
+        rgba_to_indexed, CommonHeader, CzError,
         CzVersion, ExtendedHeader
     },
     formats::{cz0, cz1, cz2, cz3, cz4},
@@ -121,34 +121,32 @@ impl DynamicCz {
         let output_bitmap;
         match self.header_common.depth() {
             4 => {
+                eprintln!("Files with a bit depth of 4 are not yet supported");
                 todo!()
             }
             8 => {
-                match &self.palette {
-                    Some(pal) if self.header_common.depth() <= 8 => {
-                        output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
+                if let Some(pal) = &self.palette {
+                    // Use the existing palette to palette the image
+                    output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
 
-                        for rgba in pal {
-                            out_file.write_all(&rgba.0)?;
-                        }
-                    },
-                    // Generate a palette if there is none
-                    None if self.header_common.depth() <= 8 => {
-                        let result = indexed_gen_palette(
-                            self.bitmap(),
-                            self.header()
-                        )?;
+                    for rgba in pal {
+                        out_file.write_all(&rgba.0)?;
+                    }
+                } else {
+                    // Generate a palette and corresponding indexed bitmap if there is none
+                    let result = indexed_gen_palette(
+                        self.bitmap(),
+                        self.header()
+                    )?;
 
-                        output_bitmap = result.0;
-                        let palette = result.1;
+                    output_bitmap = result.0;
+                    let palette = result.1;
 
-                        for rgba in palette {
-                            let mut rgba_clone = rgba.0.clone();
-                            rgba_clone[0..3].reverse();
-                            out_file.write_all(&rgba_clone)?;
-                        }
-                    },
-                    _ => output_bitmap = self.bitmap().clone(),
+                    for rgba in palette {
+                        let mut rgba_clone = rgba.0;
+                        rgba_clone[0..3].reverse();
+                        out_file.write_all(&rgba_clone)?;
+                    }
                 }
             },
             24 => {

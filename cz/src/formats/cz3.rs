@@ -1,7 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use crate::common::{CommonHeader, CzError, CzHeader};
+use crate::common::{CommonHeader, CzError};
 use crate::compression::{compress, decompress, get_chunk_info};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(
@@ -17,10 +17,10 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(
     Ok(bitmap)
 }
 
-pub fn encode<T: WriteBytesExt + Write, H: CzHeader>(
+pub fn encode<T: WriteBytesExt + Write>(
     output: &mut T,
     bitmap: &[u8],
-    header: &H,
+    header: &CommonHeader,
 ) -> Result<(), CzError> {
     let bitmap = diff_line(header, bitmap);
 
@@ -37,7 +37,7 @@ pub fn encode<T: WriteBytesExt + Write, H: CzHeader>(
 ///
 /// Uses the previous line to determine the characterisitcs of the
 /// following lines
-fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
+fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
     let width = header.width() as u32;
     let height = header.height() as u32;
     let mut output_buf = data.to_vec();
@@ -74,10 +74,10 @@ fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
                 ])
             }
         } else if pixel_byte_count == 1 {
-            for x in 0..line_byte_count {
+            for (x, rgba) in curr_line.iter().enumerate().take(line_byte_count) {
                 let loc = (y * width) as usize + x;
 
-                output_buf[loc] = curr_line[x];
+                output_buf[loc] = *rgba;
             }
         }
 
@@ -90,7 +90,7 @@ fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
 /// Function to encode data into the CZ3 format before compression
 ///
 /// Read more in [`line_diff`]
-fn diff_line<T: CzHeader>(header: &T, input: &[u8]) -> Vec<u8> {
+fn diff_line(header: &CommonHeader, input: &[u8]) -> Vec<u8> {
     let width = header.width() as u32;
     let height = header.height() as u32;
 

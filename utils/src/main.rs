@@ -1,5 +1,3 @@
-mod font_generation;
-
 use cz::{
     common::{CzHeader, CzVersion},
     dynamic::DynamicCz

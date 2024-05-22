@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "cz", "font",
+    "cz",
     "utils",
 ]
 

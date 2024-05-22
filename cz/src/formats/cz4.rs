@@ -2,7 +2,7 @@ use byteorder::ReadBytesExt;
 use image::RgbaImage;
 use std::io::{Read, Seek, SeekFrom};
 
-use crate::common::{CommonHeader, CzError, CzHeader};
+use crate::common::{CommonHeader, CzError};
 use crate::compression::{decompress, get_chunk_info};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(
