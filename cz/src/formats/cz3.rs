@@ -24,7 +24,7 @@ pub fn encode<T: WriteBytesExt + Write, H: CzHeader>(
 ) -> Result<(), CzError> {
     let bitmap = diff_line(header, bitmap);
 
-    let (compressed_data, compressed_info) = compress(&bitmap, 0xFEFD);
+    let (compressed_data, compressed_info) = compress(&bitmap, 0xA000);
 
     compressed_info.write_into(output)?;
 
@@ -42,7 +42,8 @@ fn line_diff<T: CzHeader>(header: &T, data: &[u8]) -> Vec<u8> {
     let height = header.height() as u32;
     let mut output_buf = data.to_vec();
 
-    let block_height = (f32::ceil(height as f32 / 3.0) as u16) as usize;
+    let block_height =
+        (f32::ceil(height as f32 / 3.0) as u16) as usize;
     let pixel_byte_count = header.depth() >> 3;
     let line_byte_count = (width * pixel_byte_count as u32) as usize;
 

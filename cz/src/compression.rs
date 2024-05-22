@@ -227,7 +227,10 @@ fn copy_one(input: &[u8], src: usize) -> u8 {
     }
 }
 
-pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
+pub fn compress(
+    data: &[u8],
+    size: usize,
+) -> (Vec<u8>, CompressionInfo) {
     let mut size = size;
     if size == 0 {
         size = 0xFEFD
@@ -248,17 +251,17 @@ pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     loop {
         (count, part_data, last) = compress_lzw(&data[offset..], size, last);
         if count == 0 {
-            break;
+            break
         }
         offset += count;
 
         for d in &part_data {
-            output_buf.write_all(&d.to_le_bytes()).unwrap();
+            output_buf.write(&d.to_le_bytes()).unwrap();
         }
 
         output_info.chunks.push(ChunkInfo {
             size_compressed: part_data.len(),
-            size_raw: count,
+            size_raw: count
         });
 
         output_info.chunk_count += 1;
@@ -278,22 +281,23 @@ pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
 
 fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Vec<u8>) {
     let mut count = 0;
-    let mut dictionary = HashMap::with_capacity(size);
+    let mut dictionary = HashMap::new();
     for i in 0..=255 {
         dictionary.insert(vec![i], i as u16);
     }
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
-    let mut element = Vec::with_capacity(512);
-    if !last.is_empty() {
+    let mut element = Vec::new();
+    if last.len() != 0 {
         element = last
     }
 
-    let mut compressed = Vec::new();
+    let mut compressed = Vec::with_capacity(size);
     for c in data {
         let mut entry = element.clone();
         entry.push(*c);
-        if dictionary.contains_key(&entry) {
+
+        if dictionary.get(&entry).is_some() {
             element = entry
         } else {
             compressed.push(*dictionary.get(&element).unwrap());
@@ -305,23 +309,23 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
         count += 1;
 
         if size > 0 && compressed.len() == size {
-            break;
+            break
         }
     }
 
     let last_element = element;
-    if !compressed.is_empty() {
-        if !last_element.is_empty() {
+    if compressed.len() == 0 {
+        if last_element.len() != 0 {
             for c in last_element {
                 compressed.push(*dictionary.get(&vec![c]).unwrap());
             }
         }
-        return (count, compressed, Vec::new());
+        return (count, compressed, Vec::new())
     } else if compressed.len() < size {
-        if !last_element.is_empty() {
+        if last_element.len() != 0 {
             compressed.push(*dictionary.get(&last_element).unwrap());
         }
-        return (count, compressed, Vec::new());
+        return (count, compressed, Vec::new())
     }
 
     (count, compressed, last_element)

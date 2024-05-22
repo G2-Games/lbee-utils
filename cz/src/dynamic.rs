@@ -143,7 +143,9 @@ impl DynamicCz {
                         let palette = result.1;
 
                         for rgba in palette {
-                            out_file.write_all(&rgba.0)?;
+                            let mut rgba_clone = rgba.0.clone();
+                            rgba_clone[0..3].reverse();
+                            out_file.write_all(&rgba_clone)?;
                         }
                     },
                     _ => output_bitmap = self.bitmap().clone(),
