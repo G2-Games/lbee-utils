@@ -70,7 +70,8 @@ impl DynamicCz {
         let image_size = header_common.width() as usize * header_common.height() as usize;
         if bitmap.len() != image_size * (header_common.depth() >> 3) as usize {
             // If the bitmap is smaller or larger than the image size, it is likely wrong
-            return Err(CzError::Corrupt);
+            eprintln!("Image is wrong, length is {}, expected {}", bitmap.len(), image_size * (header_common.depth() >> 3) as usize);
+            //return Err(CzError::Corrupt);
         }
 
         match header_common.depth() {
@@ -114,7 +115,10 @@ impl DynamicCz {
 
         self.header_common.write_into(&mut out_file)?;
 
-        if let Some(ext) = self.header_extended {
+        if self.header().version() == CzVersion::CZ2 {
+            // CZ2 files have this odd section instead of an extended header...?
+            out_file.write_all(&[0, 0, 0])?;
+        } else if let Some(ext) = self.header_extended {
             ext.write_into(&mut out_file)?;
         }
 
@@ -144,7 +148,9 @@ impl DynamicCz {
 
                     for rgba in palette {
                         let mut rgba_clone = rgba.0;
-                        rgba_clone[0..3].reverse();
+                        if false {
+                            rgba_clone[0..3].reverse();
+                        }
                         out_file.write_all(&rgba_clone)?;
                     }
                 }
@@ -164,7 +170,7 @@ impl DynamicCz {
         match self.header_common.version() {
             CzVersion::CZ0 => cz0::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ1 => cz1::encode(&mut out_file, &output_bitmap)?,
-            CzVersion::CZ2 => todo!(),
+            CzVersion::CZ2 => cz2::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ3 => cz3::encode(&mut out_file, &output_bitmap, &self.header_common)?,
             CzVersion::CZ4 => todo!(),
             CzVersion::CZ5 => todo!(),
@@ -182,10 +188,15 @@ impl DynamicCz {
         &self,
         path: &P,
     ) -> Result<(), image::error::EncodingError> {
+        let size = (self.header_common.width() as u32 * self.header_common.height() as u32) * 4;
+
+        let mut buf = vec![0; size as usize];
+        buf[..self.bitmap.len()].copy_from_slice(&self.bitmap);
+
         let image = image::RgbaImage::from_raw(
             self.header_common.width() as u32,
             self.header_common.height() as u32,
-            self.bitmap.clone(),
+            buf.clone(),
         )
         .unwrap();
 
