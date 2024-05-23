@@ -1,4 +1,5 @@
 mod binio;
+mod color;
 mod compression;
 
 pub mod common;

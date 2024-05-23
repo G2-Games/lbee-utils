@@ -7,11 +7,8 @@ use std::{
 };
 
 use crate::{
-    common::{
-        apply_palette, get_palette, indexed_gen_palette,
-        rgba_to_indexed, CommonHeader, CzError,
-        CzVersion, ExtendedHeader
-    },
+    color::{apply_palette, get_palette, indexed_gen_palette, rgba_to_indexed},
+    common::{CommonHeader, CzError, CzVersion, ExtendedHeader},
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
@@ -38,9 +35,7 @@ impl DynamicCz {
     /// The input must begin with the
     /// [magic bytes](https://en.wikipedia.org/wiki/File_format#Magic_number)
     /// of the file
-    fn decode<T: Seek + ReadBytesExt + Read>(
-        input: &mut T
-    ) -> Result<Self, CzError> {
+    fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
         // Get the header common to all CZ images
         let header_common = CommonHeader::from_bytes(input)?;
         let mut header_extended = None;
@@ -70,22 +65,27 @@ impl DynamicCz {
         let image_size = header_common.width() as usize * header_common.height() as usize;
         if bitmap.len() != image_size * (header_common.depth() >> 3) as usize {
             // If the bitmap is smaller or larger than the image size, it is likely wrong
-            eprintln!("Image is wrong, length is {}, expected {}", bitmap.len(), image_size * (header_common.depth() >> 3) as usize);
-            return Err(CzError::Corrupt);
+            eprintln!(
+                "Image is wrong, length is {}, expected {}",
+                bitmap.len(),
+                image_size * (header_common.depth() >> 3) as usize
+            );
+            return Err(CzError::Corrupt(String::from("Bitmap size incorrect")));
         }
 
         match header_common.depth() {
             4 => {
+                eprintln!("Files with a bit depth of 4 are not yet supported");
                 todo!()
             }
             8 => {
                 if let Some(palette) = &palette {
                     bitmap = apply_palette(&bitmap, palette)?;
                 } else {
-                    return Err(CzError::PaletteError)
+                    return Err(CzError::PaletteError);
                 }
-            },
-            24 =>  {
+            }
+            24 => {
                 bitmap = bitmap
                     .windows(3)
                     .step_by(3)
@@ -93,7 +93,12 @@ impl DynamicCz {
                     .collect();
             }
             32 => (),
-            _ => panic!()
+            _ => {
+                return Err(CzError::Corrupt(format!(
+                    "Invalid bit depth: {}",
+                    header_common.depth()
+                )))
+            }
         }
 
         Ok(Self {
@@ -107,10 +112,7 @@ impl DynamicCz {
     /// Save the `DynamicCz` as a CZ# file. The format saved in is determined
     /// from the format in the header. Check [`CommonHeader::set_version()`]
     /// to change the CZ# version.
-    pub fn save_as_cz<T: Into<std::path::PathBuf>>(
-        &self,
-        path: T
-    ) -> Result<(), CzError> {
+    pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
         let mut out_file = BufWriter::new(File::create(path.into())?);
 
         self.header_common.write_into(&mut out_file)?;
@@ -129,6 +131,7 @@ impl DynamicCz {
                 todo!()
             }
             8 => {
+                // Do things with palettes
                 if let Some(pal) = &self.palette {
                     // Use the existing palette to palette the image
                     output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
@@ -138,10 +141,7 @@ impl DynamicCz {
                     }
                 } else {
                     // Generate a palette and corresponding indexed bitmap if there is none
-                    let result = indexed_gen_palette(
-                        self.bitmap(),
-                        self.header()
-                    )?;
+                    let result = indexed_gen_palette(self.bitmap(), self.header())?;
 
                     output_bitmap = result.0;
                     let palette = result.1;
@@ -149,22 +149,30 @@ impl DynamicCz {
                     for rgba in palette {
                         let mut rgba_clone = rgba.0;
                         if false {
+                            // TODO: Make a toggle for this
                             rgba_clone[0..3].reverse();
                         }
                         out_file.write_all(&rgba_clone)?;
                     }
                 }
-            },
+            }
             24 => {
-                output_bitmap = self.bitmap
+                // Convert from RGBA to RGB
+                output_bitmap = self
+                    .bitmap
                     .windows(4)
                     .step_by(4)
                     .flat_map(|p| &p[0..3])
                     .copied()
                     .collect();
-            },
+            }
             32 => output_bitmap = self.bitmap.clone(),
-            _ => return Err(CzError::Corrupt)
+            _ => {
+                return Err(CzError::Corrupt(format!(
+                    "Invalid bit depth: {}",
+                    self.header_common.depth()
+                )))
+            }
         }
 
         match self.header_common.version() {
@@ -172,7 +180,7 @@ impl DynamicCz {
             CzVersion::CZ1 => cz1::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ2 => cz2::encode(&mut out_file, &output_bitmap)?,
             CzVersion::CZ3 => cz3::encode(&mut out_file, &output_bitmap, &self.header_common)?,
-            CzVersion::CZ4 => todo!(),
+            CzVersion::CZ4 => cz4::encode(&mut out_file, &output_bitmap, &self.header_common)?,
             CzVersion::CZ5 => todo!(),
         }
 
@@ -214,13 +222,9 @@ impl DynamicCz {
         depth: u16,
         width: u16,
         height: u16,
-        bitmap: Vec<u8>
+        bitmap: Vec<u8>,
     ) -> Self {
-        let mut header_common = CommonHeader::new(
-            version,
-            width,
-            height
-        );
+        let mut header_common = CommonHeader::new(version, width, height);
         header_common.set_depth(depth);
 
         Self {

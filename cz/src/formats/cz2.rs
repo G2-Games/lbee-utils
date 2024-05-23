@@ -13,10 +13,7 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Vec<u8>, C
     Ok(bitmap)
 }
 
-pub fn encode<T: WriteBytesExt + Write>(
-    output: &mut T,
-    bitmap: &[u8],
-) -> Result<(), CzError> {
+pub fn encode<T: WriteBytesExt + Write>(output: &mut T, bitmap: &[u8]) -> Result<(), CzError> {
     let (compressed_data, compressed_info) = compress2(bitmap, 0x87BDF);
 
     dbg!(&compressed_info);

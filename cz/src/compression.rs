@@ -116,19 +116,11 @@ pub fn decompress<T: Seek + ReadBytesExt + Read>(
     Ok(bitmap)
 }
 
-fn get_offset(
-    input: &[u8],
-    src: usize
-) -> usize {
+fn get_offset(input: &[u8], src: usize) -> usize {
     (((input[src] as usize) | (input[src + 1] as usize) << 8) - 0x101) * 2
 }
 
-fn copy_range(
-    bitmap: &mut Vec<u8>,
-    input: &[u8],
-    src: usize,
-    dst: usize
-) -> usize {
+fn copy_range(bitmap: &mut Vec<u8>, input: &[u8], src: usize, dst: usize) -> usize {
     let mut dst = dst;
     let start_pos = dst;
 
@@ -156,10 +148,7 @@ fn copy_range(
     dst - start_pos
 }
 
-fn copy_one(
-    input: &[u8],
-    src: usize
-) -> u8 {
+fn copy_one(input: &[u8], src: usize) -> u8 {
     if input[src + 1] == 0 {
         input[src]
     } else if get_offset(input, src) == src {
@@ -188,10 +177,7 @@ pub fn decompress_2<T: Seek + ReadBytesExt + Read>(
     Ok(output_buf)
 }
 
-pub fn decompress_lzw2(
-    input_data: &[u8],
-    size: usize
-) -> Vec<u8> {
+fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
     let mut data = input_data.to_vec();
     data[0] = 0;
     let mut dictionary = HashMap::new();
@@ -256,7 +242,7 @@ pub fn compress(
     let mut count;
     let mut last = Vec::new();
 
-    let mut output_buf = Vec::new();
+    let mut output_buf: Vec<u8> = vec![];
     let mut output_info = CompressionInfo {
         total_size_raw: data.len(),
         ..Default::default()
@@ -270,7 +256,7 @@ pub fn compress(
         offset += count;
 
         for d in &part_data {
-            output_buf.write_all(&d.to_le_bytes()).unwrap();
+            output_buf.write(&d.to_le_bytes()).unwrap();
         }
 
         output_info.chunks.push(ChunkInfo {
@@ -283,9 +269,6 @@ pub fn compress(
 
     if output_info.chunk_count == 0 {
         panic!("No chunks compressed!")
-    } else if output_info.chunk_count != 1 {
-        output_info.chunks[0].size_raw -= 1;
-        output_info.chunks[output_info.chunk_count - 1].size_raw += 1;
     }
 
     output_info.total_size_compressed = output_buf.len() / 2;
@@ -293,11 +276,7 @@ pub fn compress(
     (output_buf, output_info)
 }
 
-fn compress_lzw(
-    data: &[u8],
-    size: usize,
-    last: Vec<u8>
-) -> (usize, Vec<u16>, Vec<u8>) {
+fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Vec<u8>) {
     let mut count = 0;
     let mut dictionary = HashMap::new();
     for i in 0..=255 {
@@ -306,7 +285,7 @@ fn compress_lzw(
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
     let mut element = Vec::new();
-    if last.is_empty() {
+    if last.len() != 0 {
         element = last
     }
 
@@ -315,7 +294,7 @@ fn compress_lzw(
         let mut entry = element.clone();
         entry.push(*c);
 
-        if dictionary.contains_key(&entry){
+        if dictionary.get(&entry).is_some() {
             element = entry
         } else {
             compressed.push(*dictionary.get(&element).unwrap());
@@ -332,15 +311,15 @@ fn compress_lzw(
     }
 
     let last_element = element;
-    if compressed.is_empty() {
-        if last_element.is_empty() {
+    if compressed.len() == 0 {
+        if last_element.len() != 0 {
             for c in last_element {
                 compressed.push(*dictionary.get(&vec![c]).unwrap());
             }
         }
         return (count, compressed, Vec::new())
     } else if compressed.len() < size {
-        if last_element.is_empty() {
+        if last_element.len() != 0 {
             compressed.push(*dictionary.get(&last_element).unwrap());
         }
         return (count, compressed, Vec::new())
@@ -349,15 +328,8 @@ fn compress_lzw(
     (count, compressed, last_element)
 }
 
-pub fn compress2(
-    data: &[u8],
-    size: usize
-) -> (Vec<u8>, CompressionInfo) {
-    let size = if size == 0 {
-        0x87BDF
-    } else {
-        size
-    };
+pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
+    let size = if size == 0 { 0x87BDF } else { size };
 
     let mut part_data;
 
@@ -371,27 +343,23 @@ pub fn compress2(
         ..Default::default()
     };
 
-    let mut i = 0;
     loop {
         (count, part_data, last) = compress_lzw2(&data[offset..], size, last);
 
         if count == 0 {
-            break
+            break;
         }
 
         offset += count;
 
         output_buf.write_all(&part_data).unwrap();
 
-        output_info.chunks.push(
-            ChunkInfo {
-                size_compressed: part_data.len(),
-                size_raw: count
-            }
-        );
+        output_info.chunks.push(ChunkInfo {
+            size_compressed: part_data.len(),
+            size_raw: count,
+        });
 
         output_info.chunk_count += 1;
-        i += 1;
     }
 
     if output_info.chunk_count == 0 {
@@ -405,13 +373,9 @@ pub fn compress2(
     (output_buf, output_info)
 }
 
-fn compress_lzw2(
-    data: &[u8],
-    size: usize,
-    last: Vec<u8>
-) -> (usize, Vec<u8>, Vec<u8>) {
+fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
     let mut data = data.to_vec();
-    if data.len() > 0 {
+    if data.is_empty() {
         data[0] = 0;
     }
     let mut count = 0;
@@ -454,7 +418,7 @@ fn compress_lzw2(
 
         if size > 0 && bit_io.byte_size() >= size {
             count -= 1;
-            break
+            break;
         }
     }
 
@@ -465,12 +429,12 @@ fn compress_lzw2(
                 write_bit(&mut bit_io, *dictionary.get(&vec![c]).unwrap());
             }
         }
-        return (count, bit_io.bytes(), Vec::new())
+        return (count, bit_io.bytes(), Vec::new());
     } else if bit_io.byte_size() < size {
         if !last_element.is_empty() {
             write_bit(&mut bit_io, *dictionary.get(&last_element).unwrap());
         }
-        return (count, bit_io.bytes(), Vec::new())
+        return (count, bit_io.bytes(), Vec::new());
     }
 
     (count, bit_io.bytes(), last_element)

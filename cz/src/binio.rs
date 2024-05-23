@@ -67,12 +67,12 @@ impl BitIO {
     }
 
     pub fn write_bit(&mut self, data: u64, bit_len: usize) {
-        if bit_len > 8*8 {
+        if bit_len > 8 * 8 {
             panic!();
         }
 
         if bit_len % 8 == 0 && self.bit_offset == 0 {
-            self.write(data, bit_len/8);
+            self.write(data, bit_len / 8);
             return;
         }
 
@@ -101,7 +101,8 @@ impl BitIO {
         let mut padded_slice = [0u8; 8];
         padded_slice.copy_from_slice(&data.to_le_bytes());
 
-        self.data[self.byte_offset..self.byte_offset + byte_len].copy_from_slice(&padded_slice[..byte_len]);
+        self.data[self.byte_offset..self.byte_offset + byte_len]
+            .copy_from_slice(&padded_slice[..byte_len]);
         self.byte_offset += byte_len;
 
         self.byte_size = self.byte_offset + (self.bit_offset + 7) / 8;
