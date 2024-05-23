@@ -256,7 +256,7 @@ pub fn compress(
         offset += count;
 
         for d in &part_data {
-            output_buf.write(&d.to_le_bytes()).unwrap();
+            output_buf.write_all(&d.to_le_bytes()).unwrap();
         }
 
         output_info.chunks.push(ChunkInfo {
@@ -269,6 +269,9 @@ pub fn compress(
 
     if output_info.chunk_count == 0 {
         panic!("No chunks compressed!")
+    } else if output_info.chunk_count != 1 {
+        output_info.chunks[0].size_raw -= 1;
+        output_info.chunks[output_info.chunk_count - 1].size_raw += 1;
     }
 
     output_info.total_size_compressed = output_buf.len() / 2;
@@ -285,7 +288,7 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
     let mut dictionary_count = (dictionary.len() + 1) as u16;
 
     let mut element = Vec::new();
-    if last.len() != 0 {
+    if !last.is_empty() {
         element = last
     }
 
@@ -294,7 +297,7 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
         let mut entry = element.clone();
         entry.push(*c);
 
-        if dictionary.get(&entry).is_some() {
+        if dictionary.contains_key(&entry) {
             element = entry
         } else {
             compressed.push(*dictionary.get(&element).unwrap());
@@ -311,15 +314,15 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
     }
 
     let last_element = element;
-    if compressed.len() == 0 {
-        if last_element.len() != 0 {
+    if compressed.is_empty() {
+        if !last_element.is_empty() {
             for c in last_element {
                 compressed.push(*dictionary.get(&vec![c]).unwrap());
             }
         }
         return (count, compressed, Vec::new())
     } else if compressed.len() < size {
-        if last_element.len() != 0 {
+        if !last_element.is_empty() {
             compressed.push(*dictionary.get(&last_element).unwrap());
         }
         return (count, compressed, Vec::new())
@@ -365,8 +368,8 @@ pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     if output_info.chunk_count == 0 {
         panic!("No chunks compressed!")
     } else if output_info.chunk_count != 1 {
-        output_info.chunks[0].size_raw += 1;
-        output_info.chunks[output_info.chunk_count - 1].size_raw -= 1;
+        output_info.chunks[0].size_raw -= 1;
+        output_info.chunks[output_info.chunk_count - 1].size_raw += 1;
     }
 
     output_info.total_size_compressed = output_buf.len();
