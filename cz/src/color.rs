@@ -93,7 +93,7 @@ pub fn indexed_gen_palette(
     Ok((indicies, gen_palette))
 }
 
-pub fn default_palette() -> Vec<Rgba<u8>> {
+pub fn _default_palette() -> Vec<Rgba<u8>> {
     let mut colormap = Vec::new();
 
     for i in 0..=0xFF {

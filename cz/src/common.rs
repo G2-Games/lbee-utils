@@ -156,8 +156,13 @@ impl CommonHeader {
         self.version
     }
 
-    pub fn set_version(&mut self, version: CzVersion) {
-        self.version = version
+    pub fn set_version<I: TryInto<CzVersion>>(&mut self, version: I) -> Result<(), ()> {
+        self.version = match version.try_into() {
+            Ok(val) => val,
+            Err(_) => return Err(()),
+        };
+
+        Ok(())
     }
 
     pub fn length(&self) -> usize {

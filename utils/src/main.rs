@@ -1,30 +1,141 @@
-use cz::{common::CzVersion, dynamic::DynamicCz};
+use cz::DynamicCz;
+
+use std::path::PathBuf;
+
+use clap::{error::ErrorKind, Error, Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "CZ Utils")]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Converts a CZ file to a PNG
+    Decode {
+        /// Input CZ file of any type
+        #[arg(value_name = "CZ FILE")]
+        input: PathBuf,
+
+        /// Output PNG file location
+        #[arg(value_name = "PATH")]
+        output: Option<PathBuf>,
+    },
+
+    /// Replace a CZ file's image data
+    Replace {
+        /// Original input CZ file of any type
+        #[arg(value_name = "CZ FILE")]
+        input: PathBuf,
+
+        /// Image to use as the replacement
+        #[arg(value_name = "IMAGE")]
+        replacement: PathBuf,
+
+        /// Output CZ file location
+        #[arg(value_name = "PATH")]
+        output: PathBuf,
+
+        /// Output CZ file version
+        #[arg(short, long, value_name = "CZ VERSION")]
+        version: Option<u8>,
+    }
+}
 
 fn main() {
-    // Open the desired PNG
-    //let new_bitmap = image::open("mio.png").unwrap().to_rgba8();
+    let cli = Cli::parse();
 
-    let gallery_cz = DynamicCz::open("test.cz4").unwrap();
-    gallery_cz.save_as_png("test.png").unwrap();
+    // Check what subcommand was run
+    match &cli.command {
+        Commands::Decode { input, output } => {
+            if !input.exists() {
+                Error::raw(
+                    ErrorKind::ValueValidation,
+                    format!("The input file provided does not exist\n")
+                ).exit()
+            }
 
-    gallery_cz.save_as_cz("test-reencode.cz4").unwrap();
+            let cz = match DynamicCz::open(input) {
+                Ok(cz) => cz,
+                Err(err) => {
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        format!("Could not open input as a CZ file: {}\n", err)
+                    ).exit()
+                },
+            };
 
-    let cz_image_test = DynamicCz::open("test-reencode.cz4").unwrap();
+            if let Some(output) = output {
+                cz.save_as_png(output).unwrap();
+            } else {
+                let file_stem = PathBuf::from(input.file_stem().unwrap());
+                cz.save_as_png(&file_stem.with_extension("png")).unwrap();
+            }
+        }
+        Commands::Replace { input, replacement, output, version } => {
+            if !input.exists() {
+                Error::raw(
+                    ErrorKind::ValueValidation,
+                    format!("The original file provided does not exist\n")
+                ).exit()
+            }
 
-    // Save the newly decoded CZ3 as another PNG as a test
-    cz_image_test.save_as_png("test-reencode.png").unwrap();
+            if !replacement.exists() {
+                Error::raw(
+                    ErrorKind::ValueValidation,
+                    format!("The replacement file provided does not exist\n")
+                ).exit()
+            }
 
-    /*
-    gallery_cz.set_bitmap(new_bitmap.into_vec());
-    gallery_cz.header_mut().set_depth(8);
-    gallery_cz.remove_palette();
-    gallery_cz.header_mut().set_version(CzVersion::CZ2);
-    gallery_cz.save_as_cz("24-modified.cz2").unwrap();
+            let mut cz = match DynamicCz::open(input) {
+                Ok(cz) => cz,
+                Err(err) => {
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        format!("Could not open input as a CZ file: {}\n", err)
+                    ).exit()
+                },
+            };
 
-    // Open that same CZ3 again to test decoding
-    let cz_image_test = DynamicCz::open("24-modified.cz2").unwrap();
+            let repl_img = match image::open(replacement) {
+                Ok(img) => img,
+                Err(err) => {
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        format!("Could not open replacement file as an image: {}\n", err)
+                    ).exit()
+                },
+            };
+            let repl_img = repl_img.to_rgba8();
 
-    // Save the newly decoded CZ3 as another PNG as a test
-    cz_image_test.save_as_png("24-modified.png").unwrap();
-    */
+            cz.header_mut().set_width(repl_img.width() as u16);
+            cz.header_mut().set_height(repl_img.height() as u16);
+            cz.set_bitmap(repl_img.into_raw());
+
+            if let Some(ver) = version {
+                match cz.header_mut().set_version(*ver) {
+                    Ok(_) => (),
+                    Err(_) => {
+                        Error::raw(
+                            ErrorKind::ValueValidation,
+                            format!("Invalid CZ Version {}; expected 0, 1, 2, 3, or 4\n", ver)
+                        ).exit()
+                    },
+                };
+            }
+
+            match cz.save_as_cz(output) {
+                Ok(_) => (),
+                Err(err) => {
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        format!("Failed to save CZ file: {}\n", err)
+                    ).exit()
+                },
+            }
+        },
+    }
 }

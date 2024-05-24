@@ -10,3 +10,7 @@ authors = ["G2"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+[profile.production]
+inherits = "release"
+lto = true

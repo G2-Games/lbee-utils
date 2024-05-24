@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 byteorder = "1.5.0"
+clap = { version = "4.5.4", features = ["derive", "unicode"] }
 cz = { path = "../cz" }
 fontdue = { version = "0.8.0", features = ["parallel"] }
 image = "0.25.1"
