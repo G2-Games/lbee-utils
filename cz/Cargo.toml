@@ -3,12 +3,11 @@ name = "cz"
 version = "0.1.0"
 edition = "2021"
 description="""
-A encoder/decoder for CZ# image files used in
-[RealLive Engine](https://www.pcgamingwiki.com/wiki/Engine:RealLive).
+A encoder/decoder for CZ# image files used in the LUCA System Engine.
 """
 
 [dependencies]
 byteorder = "1.5.0"
 thiserror = "1.0.59"
-image = {version = "0.25.1", default-features = false}
+image = { version = "0.25.1", default-features = false, features = ["png"] }
 quantizr = "1.4.2"
