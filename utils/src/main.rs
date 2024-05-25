@@ -204,6 +204,18 @@ fn main() {
                     cz.set_bitmap(repl_img.into_raw());
                     cz.remove_palette();
 
+                    if let Some(ver) = version {
+                        match cz.header_mut().set_version(*ver) {
+                            Ok(_) => (),
+                            Err(_) => {
+                                Error::raw(
+                                    ErrorKind::ValueValidation,
+                                    format!("Invalid CZ Version {}; expected 0, 1, 2, 3, or 4\n", ver)
+                                ).exit()
+                            },
+                        };
+                    }
+
                     cz.save_as_cz(&final_path).unwrap();
                 }
             } else {

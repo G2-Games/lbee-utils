@@ -1,5 +1,4 @@
 use byteorder::ReadBytesExt;
-use image::Rgba;
 use std::{
     fs::File,
     io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
@@ -7,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    color::{apply_palette, get_palette, indexed_gen_palette, rgba_to_indexed},
+    color::{apply_palette, get_palette, indexed_gen_palette, rgba_to_indexed, Palette},
     common::{CommonHeader, CzError, CzVersion, ExtendedHeader},
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
@@ -18,7 +17,7 @@ use crate::{
 pub struct DynamicCz {
     header_common: CommonHeader,
     header_extended: Option<ExtendedHeader>,
-    palette: Option<Vec<Rgba<u8>>>,
+    palette: Option<Palette>,
     bitmap: Vec<u8>,
 }
 
@@ -136,7 +135,7 @@ impl DynamicCz {
                     // Use the existing palette to palette the image
                     output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
 
-                    for rgba in pal {
+                    for rgba in &pal.colors {
                         out_file.write_all(&rgba.0)?;
                     }
                 } else {
@@ -258,13 +257,13 @@ impl DynamicCz {
 
     /// Retrieve a reference to the palette if it exists, otherwise [`None`]
     /// is returned
-    pub fn palette(&self) -> &Option<Vec<Rgba<u8>>> {
+    pub fn palette(&self) -> &Option<Palette> {
         &self.palette
     }
 
     /// Retrieve a mutable reference to the palette if it exists, otherwise
     /// [`None`] is returned
-    pub fn palette_mut(&mut self) -> &mut Option<Vec<Rgba<u8>>> {
+    pub fn palette_mut(&mut self) -> &mut Option<Palette> {
         &mut self.palette
     }
 
