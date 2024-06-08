@@ -8,7 +8,7 @@ use imagequant::Attributes;
 
 use crate::common::{CommonHeader, CzError};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rgba(pub [u8; 4]);
 
 impl From<[u8; 4]> for Rgba {
@@ -102,12 +102,19 @@ pub fn indexed_gen_palette(
 
     let (palette, indicies) = quant_result.remapped(&mut image).unwrap();
 
-    let gen_palette = palette
+    let gen_palette: Vec<Rgba> = palette
         .iter()
         .map(|c| Rgba([c.r, c.g, c.b, c.a]))
         .collect();
 
-    Ok((indicies, gen_palette))
+    dbg!(gen_palette.len());
+
+    let mut output_palette = vec![Rgba([0, 0, 0, 0]); 256];
+    output_palette[0..gen_palette.len()].copy_from_slice(&gen_palette);
+
+    dbg!(output_palette.len());
+
+    Ok((indicies, output_palette))
 }
 
 pub fn _default_palette() -> Vec<Rgba> {
