@@ -1,0 +1,16 @@
+[package]
+name = "luca_pak"
+description = """
+A crate for parsing and modifying PAK files from the LUCA System engine by
+Prototype Ltd.
+"""
+version = "0.1.0"
+edition = "2021"
+authors.workspace = true
+
+[dependencies]
+byteorder = "1.5.0"
+thiserror = "1.0.61"
+
+[lints]
+workspace = true

@@ -34,7 +34,7 @@ impl DynamicCz {
     /// The input must begin with the
     /// [magic bytes](https://en.wikipedia.org/wiki/File_format#Magic_number)
     /// of the file
-    fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
+    pub fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T) -> Result<Self, CzError> {
         // Get the header common to all CZ images
         let header_common = CommonHeader::from_bytes(input)?;
         let mut header_extended = None;

@@ -19,4 +19,8 @@ Cargo.lock
 *.ttf
 *.otf
 
+# Ignore PAK files
+*.PAK
+*.pak
+
 test_files/*
