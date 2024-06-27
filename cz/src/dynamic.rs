@@ -113,10 +113,14 @@ impl DynamicCz {
     /// to change the CZ# version.
     pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
         let mut out_file = BufWriter::new(File::create(path.into())?);
+        let mut header = self.header().clone();
 
-        self.header_common.write_into(&mut out_file)?;
+        if header.version() == CzVersion::CZ2 {
+            header.set_length(0x12)
+        }
+        header.write_into(&mut out_file)?;
 
-        if self.header().version() == CzVersion::CZ2 {
+        if header.version() == CzVersion::CZ2 {
             // CZ2 files have this odd section instead of an extended header...?
             out_file.write_all(&[0, 0, 0])?;
         } else if let Some(ext) = self.header_extended {
@@ -124,7 +128,7 @@ impl DynamicCz {
         }
 
         let output_bitmap;
-        match self.header_common.depth() {
+        match header.depth() {
             4 => {
                 eprintln!("Files with a bit depth of 4 are not yet supported");
                 todo!()

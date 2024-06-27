@@ -68,10 +68,10 @@ pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
     // Loop over the compressed bytes
     for _ in 0..parts_count {
         let compressed_size = bytes.read_u32::<LittleEndian>()?;
-        total_size += compressed_size;
+        total_size = i32::wrapping_add(total_size, compressed_size as i32);
 
         let raw_size = bytes.read_u32::<LittleEndian>()?;
-        total_size_raw += raw_size;
+        total_size_raw = u32::wrapping_add(total_size_raw, raw_size);
 
         part_sizes.push(ChunkInfo {
             size_compressed: compressed_size as usize,
@@ -159,7 +159,7 @@ fn copy_one(input: &[u8], src: usize) -> u8 {
 }
 
 /// Decompress an LZW compressed stream like CZ2
-pub fn decompress_2<T: Seek + ReadBytesExt + Read>(
+pub fn decompress2<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     chunk_info: &CompressionInfo,
 ) -> Result<Vec<u8>, CzError> {
@@ -348,11 +348,9 @@ pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
 
     loop {
         (count, part_data, last) = compress_lzw2(&data[offset..], size, last);
-
         if count == 0 {
             break;
         }
-
         offset += count;
 
         output_buf.write_all(&part_data).unwrap();
@@ -378,7 +376,7 @@ pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
 
 fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
     let mut data = data.to_vec();
-    if data.is_empty() {
+    if !data.is_empty() {
         data[0] = 0;
     }
     let mut count = 0;

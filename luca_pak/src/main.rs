@@ -1,11 +1,11 @@
 use luca_pak::Pak;
 
 fn main() {
-    let pak = Pak::open("PARAM.PAK").unwrap();
+    let pak = Pak::open("MANUAL.PAK").unwrap();
+    println!("{:#032b}", pak.header().flags());
 
-    let file = pak.get_file(0).unwrap();
-
-    dbg!(pak.files());
-
-    file.save("test").unwrap();
+    for entry in pak.entries() {
+        println!("{}", entry.name().as_ref().unwrap());
+        println!("{}", entry);
+    }
 }
