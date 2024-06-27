@@ -179,7 +179,8 @@ fn main() {
                             Error::raw(
                                 ErrorKind::ValueValidation,
                                 format!("Could not open replacement file as an image: {}\n", final_replacement.into_os_string().to_str().unwrap())
-                            ).exit()
+                            ).print().unwrap();
+                            continue;
                         },
                     };
                     let repl_img = repl_img.to_rgba8();
@@ -244,6 +245,10 @@ fn main() {
                 cz.header_mut().set_height(repl_img.height() as u16);
                 cz.set_bitmap(repl_img.into_raw());
                 cz.remove_palette();
+
+                if let Some(depth) = depth {
+                    cz.header_mut().set_depth(*depth as u16)
+                }
 
                 if let Some(ver) = version {
                     match cz.header_mut().set_version(*ver) {
