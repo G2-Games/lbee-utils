@@ -1,6 +1,6 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
-use image::RgbaImage;
 use std::io::{Read, Seek, SeekFrom, Write};
+use std::time::Instant;
 
 use crate::common::{CommonHeader, CzError};
 use crate::compression::{compress, decompress, get_chunk_info};
@@ -12,14 +12,15 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(
     let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
+    let timer = Instant::now();
     let data = decompress(bytes, &block_info)?;
+    dbg!(timer.elapsed());
 
+    let timer = Instant::now();
+    let output = line_diff(header, &data);
+    dbg!(timer.elapsed());
 
-    let mut picture = image::RgbaImage::new(header.width() as u32, header.height() as u32);
-
-    line_diff(&mut picture, &data);
-
-    Ok(picture.into_raw())
+    Ok(output)
 }
 
 pub fn encode<T: WriteBytesExt + Write>(
@@ -38,9 +39,12 @@ pub fn encode<T: WriteBytesExt + Write>(
     Ok(())
 }
 
-fn line_diff(picture: &mut RgbaImage, data: &[u8]) {
-    let width = picture.width();
-    let height = picture.height();
+fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
+    let width = header.width() as u32;
+    let height = header.height() as u32;
+
+    let mut output_buf = Vec::with_capacity((width * height * 4) as usize);
+
     let block_height = (f32::ceil(height as f32 / 3.0) as u16) as u32;
 
     let mut curr_line;
@@ -49,37 +53,38 @@ fn line_diff(picture: &mut RgbaImage, data: &[u8]) {
     let mut curr_alpha;
     let mut prev_alpha = Vec::with_capacity(width as usize);
 
-    let pcount = (width * height * 3) as usize;
-
-    let mut i = 0;
-    let mut z = 0;
+    let mut rgb_index = 0;
+    let mut alpha_index = (width * height * 3) as usize;
     for y in 0..height {
-        curr_line = data[i..i + width as usize * 3].to_vec();
-        curr_alpha = data[pcount + z..pcount + z + width as usize].to_vec();
+        curr_line = data[rgb_index..rgb_index + width as usize * 3].to_vec();
+        curr_alpha = data[alpha_index..alpha_index + width as usize].to_vec();
 
         if y % block_height != 0 {
-            for x in 0..(width as usize * 3) {
-                curr_line[x] = curr_line[x].wrapping_add(prev_line[x])
-            }
-            for x in 0..width as usize {
-                curr_alpha[x] = curr_alpha[x].wrapping_add(prev_alpha[x])
-            }
+            curr_line.iter_mut().zip(&prev_line).for_each(|(curr_p, prev_p)| {
+                *curr_p = curr_p.wrapping_add(*prev_p);
+            });
+            curr_alpha.iter_mut().zip(&prev_alpha).for_each(|(curr_a, prev_a)| {
+                *curr_a = curr_a.wrapping_add(*prev_a);
+            });
         }
 
         for x in 0..width as usize {
-            picture.get_pixel_mut(x as u32, y).0 = [
-                curr_line[x * 3],
-                curr_line[x * 3 + 1],
-                curr_line[x * 3 + 2],
+            let pos = x * 3;
+            output_buf.extend_from_slice(&[
+                curr_line[pos],
+                curr_line[pos + 1],
+                curr_line[pos + 2],
                 curr_alpha[x],
-            ];
+            ]);
         }
 
         prev_line.clone_from(&curr_line);
         prev_alpha.clone_from(&curr_alpha);
-        i += width as usize * 3;
-        z += width as usize;
+        rgb_index += width as usize * 3;
+        alpha_index += width as usize;
     }
+
+    output_buf
 }
 
 fn diff_line(header: &CommonHeader, input: &[u8]) -> Vec<u8> {

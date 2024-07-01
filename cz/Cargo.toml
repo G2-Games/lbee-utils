@@ -6,8 +6,11 @@ description="""
 A encoder/decoder for CZ# image files used in the LUCA System Engine.
 """
 
+[features]
+png = ["dep:image"]
+
 [dependencies]
 byteorder = "1.5.0"
 thiserror = "1.0.59"
-image = { version = "0.25.1", default-features = false, features = ["png"] }
 imagequant = "4.3.1"
+image = { version = "0.25", default-features = false, features = ["png"], optional = true }

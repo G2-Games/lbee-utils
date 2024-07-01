@@ -4,7 +4,7 @@ use std::{
     io::{Read, Seek, Write},
 };
 
-use crate::binio::BitIO;
+use crate::binio::BitIo;
 use crate::common::CzError;
 
 /// The size of compressed data in each chunk
@@ -189,7 +189,7 @@ fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
 
     let data_size = input_data.len();
     data.extend_from_slice(&[0, 0]);
-    let mut bit_io = BitIO::new(data);
+    let mut bit_io = BitIo::new(data);
     let mut w = dictionary.get(&0).unwrap().clone();
 
     let mut element;
@@ -391,8 +391,8 @@ fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Ve
         element = last
     }
 
-    let mut bit_io = BitIO::new(vec![0u8; size + 2]);
-    let write_bit = |bit_io: &mut BitIO, code: u64| {
+    let mut bit_io = BitIo::new(vec![0u8; size + 2]);
+    let write_bit = |bit_io: &mut BitIo, code: u64| {
         if code > 0x7FFF {
             bit_io.write_bit(1, 1);
             bit_io.write_bit(code, 18);
