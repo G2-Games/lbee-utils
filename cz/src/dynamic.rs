@@ -113,7 +113,7 @@ impl DynamicCz {
     /// to change the CZ# version.
     pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
         let mut out_file = BufWriter::new(File::create(path.into())?);
-        let mut header = self.header().clone();
+        let mut header = *self.header();
 
         if header.version() == CzVersion::CZ2 {
             header.set_length(0x12)
@@ -195,6 +195,7 @@ impl DynamicCz {
     /// Internally, the [`DynamicCz`] struct operates on 32-bit RGBA values,
     /// which is the highest encountered in CZ# files, therefore saving them
     /// as a PNG of the same or better quality is lossless.
+    #[cfg(feature = "png")]
     pub fn save_as_png<P: ?Sized + AsRef<Path>>(
         &self,
         path: &P,

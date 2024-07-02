@@ -1,4 +1,4 @@
-pub struct BitIO {
+pub struct BitIo {
     data: Vec<u8>,
     byte_offset: usize,
     bit_offset: usize,
@@ -6,7 +6,8 @@ pub struct BitIO {
     byte_size: usize,
 }
 
-impl BitIO {
+impl BitIo {
+    /// Create a new BitIO reader and writer over some data
     pub fn new(data: Vec<u8>) -> Self {
         Self {
             data,
@@ -16,22 +17,25 @@ impl BitIO {
         }
     }
 
+    /// Get the byte offset of the reader
     pub fn byte_offset(&self) -> usize {
         self.byte_offset
     }
 
+    /// Get the byte size of the reader
     pub fn byte_size(&self) -> usize {
         self.byte_size
     }
 
+    /// Get the current bytes up to `byte_size` in the reader
     pub fn bytes(&self) -> Vec<u8> {
         self.data[..self.byte_size].to_vec()
     }
 
+    /// Read some bits from the buffer
     pub fn read_bit(&mut self, bit_len: usize) -> u64 {
-        //print!("{}: ", bit_len);
         if bit_len > 8 * 8 {
-            panic!()
+            panic!("Cannot read more than 64 bits")
         }
 
         if bit_len % 8 == 0 && self.bit_offset == 0 {
@@ -54,9 +58,10 @@ impl BitIO {
         result
     }
 
+    /// Read some bytes from the buffer
     pub fn read(&mut self, byte_len: usize) -> u64 {
         if byte_len > 8 {
-            panic!()
+            panic!("Cannot read more than 8 bytes")
         }
 
         let mut padded_slice = [0u8; 8];
@@ -66,9 +71,10 @@ impl BitIO {
         u64::from_le_bytes(padded_slice)
     }
 
+    /// Write some bits to the buffer
     pub fn write_bit(&mut self, data: u64, bit_len: usize) {
         if bit_len > 8 * 8 {
-            panic!();
+            panic!("Cannot write more than 64 bits");
         }
 
         if bit_len % 8 == 0 && self.bit_offset == 0 {
@@ -95,7 +101,7 @@ impl BitIO {
 
     pub fn write(&mut self, data: u64, byte_len: usize) {
         if byte_len > 8 {
-            panic!()
+            panic!("Cannot write more than 8 bytes")
         }
 
         let mut padded_slice = [0u8; 8];

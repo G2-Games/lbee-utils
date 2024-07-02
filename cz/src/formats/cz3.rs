@@ -1,5 +1,6 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Seek, SeekFrom, Write};
+use std::time::Instant;
 
 use crate::common::{CommonHeader, CzError};
 use crate::compression::{compress, decompress, get_chunk_info};
@@ -11,8 +12,13 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(
     let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
+    let timer = Instant::now();
     let bitmap = decompress(bytes, &block_info)?;
+    dbg!(timer.elapsed());
+
+    let timer = Instant::now();
     let bitmap = line_diff(header, &bitmap);
+    dbg!(timer.elapsed());
 
     Ok(bitmap)
 }
@@ -46,22 +52,22 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
     let pixel_byte_count = header.depth() >> 3;
     let line_byte_count = (width * pixel_byte_count as u32) as usize;
 
-    let mut curr_line: Vec<u8>;
-    let mut prev_line: Vec<u8> = Vec::with_capacity(line_byte_count);
+    let mut curr_line;
+    let mut prev_line = Vec::with_capacity(line_byte_count);
 
-    let mut i = 0;
+    let mut index = 0;
     for y in 0..height {
-        curr_line = data[i..i + line_byte_count].to_vec();
+        curr_line = data[index..index + line_byte_count].to_vec();
 
         if y % block_height as u32 != 0 {
-            for x in 0..line_byte_count {
-                curr_line[x] = u8::wrapping_add(curr_line[x], prev_line[x])
-            }
+            curr_line.iter_mut().zip(&prev_line).for_each(|(curr_p, prev_p)| {
+                *curr_p = curr_p.wrapping_add(*prev_p)
+            });
         }
 
         prev_line.clone_from(&curr_line);
         if pixel_byte_count == 4 {
-            output_buf[i..i + line_byte_count].copy_from_slice(&curr_line);
+            output_buf[index..index + line_byte_count].copy_from_slice(&curr_line);
         } else if pixel_byte_count == 3 {
             for x in (0..line_byte_count).step_by(3) {
                 let loc = (y * 3 * width) as usize + x;
@@ -80,7 +86,7 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
             }
         }
 
-        i += line_byte_count;
+        index += line_byte_count;
     }
 
     output_buf
