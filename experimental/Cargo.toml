@@ -1,0 +1,15 @@
+[package]
+name = "experimental"
+description = """
+A package for experimentation, not for publishing
+"""
+version = "0.1.0"
+edition = "2021"
+authors.workspace = true
+publish = false
+
+[dependencies]
+cz = { path = "../cz/", features = ["png"] }
+
+[lints]
+workspace = true

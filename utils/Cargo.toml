@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 byteorder = "1.5.0"
 clap = { version = "4.5.4", features = ["derive", "unicode"] }
-cz = { path = "../cz" }
-image = { version = "0.25.1", default-features = false, features = ["png"] }
+cz = { path = "../cz", features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 walkdir = "2.5.0"

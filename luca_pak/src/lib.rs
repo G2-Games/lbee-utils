@@ -134,6 +134,7 @@ impl Pak {
                 length: offsets[i].1,
                 data,
                 name: Some(file_names[i].clone()),
+                unknown1: todo!(),
                 id: header.id_start + i as u32,
                 replace: false,
             };

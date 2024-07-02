@@ -6,6 +6,5 @@ fn main() {
 
     for entry in pak.entries() {
         println!("{}", entry.name().as_ref().unwrap());
-        println!("{}", entry);
     }
 }
