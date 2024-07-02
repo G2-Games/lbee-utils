@@ -1,8 +1,3 @@
-pub enum BitError {
-    InputLength
-}
-
-
 pub struct BitIo {
     data: Vec<u8>,
     byte_offset: usize,
@@ -40,7 +35,7 @@ impl BitIo {
     /// Read some bits from the buffer
     pub fn read_bit(&mut self, bit_len: usize) -> u64 {
         if bit_len > 8 * 8 {
-            panic!()
+            panic!("Cannot read more than 64 bits")
         }
 
         if bit_len % 8 == 0 && self.bit_offset == 0 {
@@ -66,7 +61,7 @@ impl BitIo {
     /// Read some bytes from the buffer
     pub fn read(&mut self, byte_len: usize) -> u64 {
         if byte_len > 8 {
-            panic!()
+            panic!("Cannot read more than 8 bytes")
         }
 
         let mut padded_slice = [0u8; 8];
@@ -79,7 +74,7 @@ impl BitIo {
     /// Write some bits to the buffer
     pub fn write_bit(&mut self, data: u64, bit_len: usize) {
         if bit_len > 8 * 8 {
-            panic!();
+            panic!("Cannot write more than 64 bits");
         }
 
         if bit_len % 8 == 0 && self.bit_offset == 0 {
@@ -104,9 +99,9 @@ impl BitIo {
         self.byte_size = self.byte_offset + (self.bit_offset + 7) / 8;
     }
 
-    pub fn write(&mut self, data: u64, byte_len: usize) -> Result<(), BitError> {
+    pub fn write(&mut self, data: u64, byte_len: usize) {
         if byte_len > 8 {
-            return Err(BitError::InputLength);
+            panic!("Cannot write more than 8 bytes")
         }
 
         let mut padded_slice = [0u8; 8];
@@ -117,7 +112,5 @@ impl BitIo {
         self.byte_offset += byte_len;
 
         self.byte_size = self.byte_offset + (self.bit_offset + 7) / 8;
-
-        Ok(())
     }
 }

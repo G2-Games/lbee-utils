@@ -113,7 +113,7 @@ impl DynamicCz {
     /// to change the CZ# version.
     pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
         let mut out_file = BufWriter::new(File::create(path.into())?);
-        let mut header = self.header().clone();
+        let mut header = *self.header();
 
         if header.version() == CzVersion::CZ2 {
             header.set_length(0x12)

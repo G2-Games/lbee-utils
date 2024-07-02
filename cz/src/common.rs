@@ -156,10 +156,12 @@ impl CommonHeader {
         self.version
     }
 
-    pub fn set_version<I: TryInto<CzVersion>>(&mut self, version: I) -> Result<(), ()> {
+    pub fn set_version<I: TryInto<CzVersion>>(
+        &mut self, version: I
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.version = match version.try_into() {
             Ok(val) => val,
-            Err(_) => return Err(()),
+            Err(_) => return Err("Invalid CZ value".into()),
         };
 
         Ok(())

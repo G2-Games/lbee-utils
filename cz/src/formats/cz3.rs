@@ -55,9 +55,9 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
     let mut curr_line;
     let mut prev_line = Vec::with_capacity(line_byte_count);
 
-    let mut i = 0;
+    let mut index = 0;
     for y in 0..height {
-        curr_line = data[i..i + line_byte_count].to_vec();
+        curr_line = data[index..index + line_byte_count].to_vec();
 
         if y % block_height as u32 != 0 {
             curr_line.iter_mut().zip(&prev_line).for_each(|(curr_p, prev_p)| {
@@ -67,7 +67,7 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
 
         prev_line.clone_from(&curr_line);
         if pixel_byte_count == 4 {
-            output_buf[i..i + line_byte_count].copy_from_slice(&curr_line);
+            output_buf[index..index + line_byte_count].copy_from_slice(&curr_line);
         } else if pixel_byte_count == 3 {
             for x in (0..line_byte_count).step_by(3) {
                 let loc = (y * 3 * width) as usize + x;
@@ -86,7 +86,7 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
             }
         }
 
-        i += line_byte_count;
+        index += line_byte_count;
     }
 
     output_buf

@@ -68,18 +68,23 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
             });
         }
 
-        for x in 0..width as usize {
-            let pos = x * 3;
-            output_buf.extend_from_slice(&[
-                curr_line[pos],
-                curr_line[pos + 1],
-                curr_line[pos + 2],
-                curr_alpha[x],
-            ]);
-        }
+        // Write the decoded RGBA data to the final buffer
+        curr_line
+            .windows(3)
+            .step_by(3)
+            .zip(&curr_alpha)
+            .for_each(|(curr_p, alpha_p)| {
+                output_buf.extend_from_slice(&[
+                    curr_p[0],
+                    curr_p[1],
+                    curr_p[2],
+                    *alpha_p,
+                ]);
+            });
 
         prev_line.clone_from(&curr_line);
         prev_alpha.clone_from(&curr_alpha);
+
         rgb_index += width as usize * 3;
         alpha_index += width as usize;
     }
