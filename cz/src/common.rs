@@ -16,6 +16,9 @@ pub enum CzError {
     #[error("Bitmap size does not match image size")]
     BitmapFormat,
 
+    #[error("CZ version is invalid: {}", 0)]
+    InvalidVersion(u32),
+
     #[error("File data is incorrect, it might be corrupt: {0}")]
     Corrupt(String),
 
@@ -156,10 +159,10 @@ impl CommonHeader {
         self.version
     }
 
-    pub fn set_version<I: TryInto<CzVersion>>(&mut self, version: I) -> Result<(), ()> {
-        self.version = match version.try_into() {
+    pub fn set_version<I: TryInto<CzVersion> + Into<u32> + Clone>(&mut self, version: I) -> Result<(), CzError> {
+        self.version = match version.clone().try_into() {
             Ok(val) => val,
-            Err(_) => return Err(()),
+            Err(_) => return Err(CzError::InvalidVersion(version.into())),
         };
 
         Ok(())

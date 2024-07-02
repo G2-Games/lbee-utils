@@ -107,12 +107,8 @@ pub fn indexed_gen_palette(
         .map(|c| Rgba([c.r, c.g, c.b, c.a]))
         .collect();
 
-    dbg!(gen_palette.len());
-
     let mut output_palette = vec![Rgba([0, 0, 0, 0]); 256];
     output_palette[0..gen_palette.len()].copy_from_slice(&gen_palette);
-
-    dbg!(output_palette.len());
 
     Ok((indicies, output_palette))
 }
