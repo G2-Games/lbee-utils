@@ -1,7 +1,8 @@
 fn main() {
-    let cz_file = cz::open("test_file.cz3").unwrap();
+    let mut cz_file = cz::open("test_file.cz3").unwrap();
+    cz_file.save_as_png("test.png").unwrap();
 
-    cz_file.save_as_png("test_file.png").unwrap();
+    cz_file.header_mut().set_version(3).unwrap();
 
-    cz_file.save_as_cz("test_file.cz").unwrap();
+    cz_file.save_as_cz("test_file.cz2").unwrap();
 }

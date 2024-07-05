@@ -25,7 +25,7 @@ pub struct DynamicCz {
 }
 
 impl DynamicCz {
-    /// Decode a CZ# file from anything which implements [`Read`] and [`Seek`]
+    /// Decode a CZ# file from anything that implements [`Read`] and [`Seek`]
     ///
     /// The input must begin with the
     /// [magic bytes](https://en.wikipedia.org/wiki/File_format#Magic_number)
@@ -117,11 +117,12 @@ impl DynamicCz {
         Ok(())
     }
 
-    /// Encode the CZ file into a byte stream.
+    /// Encode a CZ# file into anything that implements [`Write`] and [`Seek`]
+    ///
     /// This encodes everything based on options the header which have been
     /// set by the user. For example, to change the version of file to be
     /// saved, use [`CommonHeader::set_version()`]
-    pub fn encode<T: Write + Seek>(
+    pub fn encode<T: Write>(
         &self,
         mut output: &mut T
     ) -> Result<(), CzError> {

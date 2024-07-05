@@ -200,11 +200,10 @@ impl CommonHeader {
         self.unknown
     }
 
-    pub fn write_into<T: Seek + WriteBytesExt + Write>(
+    pub fn write_into<T: WriteBytesExt + Write>(
         &self,
         output: &mut T,
-    ) -> Result<usize, io::Error> {
-        let pos = output.stream_position()?;
+    ) -> Result<(), io::Error> {
         let magic_bytes = [b'C', b'Z', b'0' + self.version as u8, b'\0'];
 
         output.write_all(&magic_bytes)?;
@@ -214,7 +213,7 @@ impl CommonHeader {
         output.write_u16::<LittleEndian>(self.depth())?;
         output.write_u8(self.color_block())?;
 
-        Ok((output.stream_position()? - pos) as usize)
+        Ok(())
     }
 }
 
@@ -325,12 +324,10 @@ impl ExtendedHeader {
         })
     }
 
-    pub fn write_into<T: Seek + WriteBytesExt + Write>(
+    pub fn write_into<T: WriteBytesExt + Write>(
         &self,
         output: &mut T,
-    ) -> Result<usize, io::Error> {
-        let pos = output.stream_position()?;
-
+    ) -> Result<(), io::Error> {
         output.write_all(&self.unknown_1)?;
         output.write_u16::<LittleEndian>(self.crop_width)?;
         output.write_u16::<LittleEndian>(self.crop_height)?;
@@ -343,6 +340,6 @@ impl ExtendedHeader {
             output.write_u32::<LittleEndian>(self.unknown_2.unwrap())?;
         }
 
-        Ok((output.stream_position()? - pos) as usize)
+        Ok(())
     }
 }

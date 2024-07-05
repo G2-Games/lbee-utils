@@ -1,8 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::time::Instant;
 
-use crate::common::{CommonHeader, CzError};
+use crate::common::{CzError, CommonHeader};
 use crate::compression::{compress, decompress, get_chunk_info};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(
@@ -12,15 +11,11 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(
     let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
-    let timer = Instant::now();
     let data = decompress(bytes, &block_info)?;
-    dbg!(timer.elapsed());
 
-    let timer = Instant::now();
-    let output = line_diff(header, &data);
-    dbg!(timer.elapsed());
+    let bitmap = line_diff(header, &data);
 
-    Ok(output)
+    Ok(bitmap)
 }
 
 pub fn encode<T: WriteBytesExt + Write>(
