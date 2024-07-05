@@ -144,14 +144,14 @@ impl DynamicCz {
                 // Do things with palettes
                 if let Some(pal) = &self.palette {
                     // Use the existing palette to palette the image
-                    output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
+                    output_bitmap = rgba_to_indexed(self.as_raw(), pal)?;
 
                     for rgba in pal.colors() {
                         output.write_all(rgba.as_slice())?;
                     }
                 } else {
                     // Generate a palette and corresponding indexed bitmap if there is none
-                    let result = indexed_gen_palette(self.bitmap(), self.header())?;
+                    let result = indexed_gen_palette(self.as_raw(), self.header())?;
 
                     output_bitmap = result.0;
                     let palette = result.1;
@@ -221,17 +221,15 @@ impl DynamicCz {
         Ok(())
     }
 
-    /// Create a CZ# image from RGBA bytes. The bytes *must* be RGBA, as it is
-    /// used internally for operations
+    /// Create a CZ# image from RGBA bytes. The bytes *must* be RGBA, as that
+    /// is the only format that is used internally.
     pub fn from_raw(
         version: CzVersion,
-        depth: u16,
         width: u16,
         height: u16,
         bitmap: Vec<u8>,
     ) -> Self {
-        let mut header_common = CommonHeader::new(version, width, height);
-        header_common.set_depth(depth);
+        let header_common = CommonHeader::new(version, width, height);
 
         Self {
             header_common,
@@ -241,15 +239,15 @@ impl DynamicCz {
         }
     }
 
-    /// Set a specific header for the image, this basica
+    /// Set a specific header for the image.
     pub fn with_header(mut self, header: CommonHeader) -> Self {
         self.header_common = header;
 
         self
     }
 
-    /// Add an [`ExtendedHeader`] to the image. This header controls things like
-    /// cropping and offsets in the game engine
+    /// Set an [`ExtendedHeader`] to be used for the image. This header
+    /// controls things like cropping and offsets in the game engine.
     pub fn with_extended_header(mut self, ext_header: ExtendedHeader) -> Self {
         if ext_header.offset_width.is_some() {
             self.header_common.set_length(36)
@@ -262,24 +260,28 @@ impl DynamicCz {
         self
     }
 
-    /// Retrieve a reference to the palette if it exists, otherwise [`None`]
-    /// is returned
+    /// Remove an extended header if the image has one, else this does nothing.
+    pub fn clear_extended_header(&mut self) {
+        self.header_extended = None
+    }
+
+    /// Returns a reference to the palette if it exists.
     pub fn palette(&self) -> &Option<Palette> {
         &self.palette
     }
 
-    /// Retrieve a mutable reference to the palette if it exists, otherwise
-    /// [`None`] is returned
+    /// Returns a mutable reference to the palette if it exists.
     pub fn palette_mut(&mut self) -> &mut Option<Palette> {
         &mut self.palette
     }
 
     /// Remove the image palette, which forces palette regeneration on save
-    /// for bit depths 8 or less
-    pub fn remove_palette(&mut self) {
+    /// for images with a bit depth of 8.
+    pub fn clear_palette(&mut self) {
         *self.palette_mut() = None
     }
 
+    /// Returns a reference to the [`CommonHeader`] of the image.
     pub fn header(&self) -> &CommonHeader {
         &self.header_common
     }
@@ -292,11 +294,12 @@ impl DynamicCz {
         header.clone_into(&mut self.header_common)
     }
 
-    pub fn bitmap(&self) -> &Vec<u8> {
+    /// Returns the underlying raw buffer.
+    pub fn as_raw(&self) -> &Vec<u8> {
         &self.bitmap
     }
 
-    pub fn into_bitmap(self) -> Vec<u8> {
+    pub fn into_raw(self) -> Vec<u8> {
         self.bitmap
     }
 
