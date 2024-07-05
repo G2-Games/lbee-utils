@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
+use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(name = "CZ Utils")]
@@ -52,7 +52,7 @@ enum Commands {
         /// Output CZ file bit depth
         #[arg(short, long, value_name = "BIT DEPTH")]
         depth: Option<u16>,
-    }
+    },
 }
 
 fn main() {
@@ -60,18 +60,34 @@ fn main() {
 
     // Check what subcommand was run
     match &cli.command {
-        Commands::Decode { input, output, batch } => {
+        Commands::Decode {
+            input,
+            output,
+            batch,
+        } => {
             if !input.exists() {
-                Error::raw(ErrorKind::ValueValidation, "The input file/folder provided does not exist\n").exit()
+                Error::raw(
+                    ErrorKind::ValueValidation,
+                    "The input file/folder provided does not exist\n",
+                )
+                .exit()
             }
 
             if *batch {
                 if input.is_file() {
-                    Error::raw(ErrorKind::ValueValidation, "Batch input must be a directory\n").exit()
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        "Batch input must be a directory\n",
+                    )
+                    .exit()
                 }
 
                 if output.is_none() || output.as_ref().unwrap().is_file() {
-                    Error::raw(ErrorKind::ValueValidation, "Batch output must be a directory\n").exit()
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        "Batch output must be a directory\n",
+                    )
+                    .exit()
                 }
 
                 for entry in walkdir::WalkDir::new(input).max_depth(1) {
@@ -91,10 +107,15 @@ fn main() {
                         Err(_) => {
                             Error::raw(
                                 ErrorKind::ValueValidation,
-                                format!("Could not open input as a CZ file: {}\n", path.into_os_string().to_str().unwrap())
-                            ).print().unwrap();
+                                format!(
+                                    "Could not open input as a CZ file: {}\n",
+                                    path.into_os_string().to_str().unwrap()
+                                ),
+                            )
+                            .print()
+                            .unwrap();
                             continue;
-                        },
+                        }
                     };
 
                     cz.save_as_png(&final_path).unwrap();
@@ -110,27 +131,54 @@ fn main() {
                 }
             }
         }
-        Commands::Replace { batch, input, replacement, output, version, depth } => {
+        Commands::Replace {
+            batch,
+            input,
+            replacement,
+            output,
+            version,
+            depth,
+        } => {
             if !input.exists() {
-                Error::raw(ErrorKind::ValueValidation, "The original file provided does not exist\n").exit()
+                Error::raw(
+                    ErrorKind::ValueValidation,
+                    "The original file provided does not exist\n",
+                )
+                .exit()
             }
 
             if !replacement.exists() {
-                Error::raw(ErrorKind::ValueValidation, "The replacement file provided does not exist\n").exit()
+                Error::raw(
+                    ErrorKind::ValueValidation,
+                    "The replacement file provided does not exist\n",
+                )
+                .exit()
             }
 
             // If it's a batch replacement, we want directories to search
             if *batch {
                 if !input.is_dir() {
-                    Error::raw(ErrorKind::ValueValidation, "Batch input location must be a directory\n").exit()
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        "Batch input location must be a directory\n",
+                    )
+                    .exit()
                 }
 
                 if !replacement.is_dir() {
-                    Error::raw(ErrorKind::ValueValidation, "Batch replacement location must be a directory\n").exit()
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        "Batch replacement location must be a directory\n",
+                    )
+                    .exit()
                 }
 
                 if !output.is_dir() {
-                    Error::raw(ErrorKind::ValueValidation, "Batch output location must be a directory\n").exit()
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        "Batch output location must be a directory\n",
+                    )
+                    .exit()
                 }
 
                 // Replace all the files within the directory and print errors for them
@@ -140,25 +188,27 @@ fn main() {
                 {
                     let path = entry.unwrap().into_path();
                     if !path.is_file() {
-                        continue
+                        continue;
                     }
 
                     // Set the replacement image to the same name as the original file
                     let mut final_replacement = replacement.to_path_buf();
-                    final_replacement.push(PathBuf::from(path.file_name().unwrap()).with_extension("png"));
+                    final_replacement
+                        .push(PathBuf::from(path.file_name().unwrap()).with_extension("png"));
 
                     // Set the replacement image to the same name as the original file
                     let mut final_output = output.to_path_buf();
                     final_output.push(path.file_name().unwrap());
 
-                    if let Err(error) = replace_cz(
-                        &path,
-                        &final_output,
-                        &final_replacement,
-                        version,
-                        depth
-                    ) {
-                        Error::raw(ErrorKind::ValueValidation, format!("{:?} - {}\n", path, error)).print().unwrap();
+                    if let Err(error) =
+                        replace_cz(&path, &final_output, &final_replacement, version, depth)
+                    {
+                        Error::raw(
+                            ErrorKind::ValueValidation,
+                            format!("{:?} - {}\n", path, error),
+                        )
+                        .print()
+                        .unwrap();
                     }
                 }
             } else {
@@ -171,19 +221,17 @@ fn main() {
                 }
 
                 if !output.is_file() {
-                    Error::raw(ErrorKind::ValueValidation, "Replacement output must be a file\n").exit()
+                    Error::raw(
+                        ErrorKind::ValueValidation,
+                        "Replacement output must be a file\n",
+                    )
+                    .exit()
                 }
 
                 // Replace the input file with the new image
-                replace_cz(
-                    &input,
-                    &output,
-                    &replacement,
-                    version,
-                    depth
-                ).unwrap();
+                replace_cz(&input, &output, &replacement, version, depth).unwrap();
             }
-        },
+        }
     }
 }
 
@@ -197,11 +245,11 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = input_path.as_ref();
     if !path.is_file() {
-        return Err("Input path is not a file".into())
+        return Err("Input path is not a file".into());
     }
 
     if !replacement_path.as_ref().exists() || !replacement_path.as_ref().is_file() {
-        return Err("Replacement path does not exist or is not a file".into())
+        return Err("Replacement path does not exist or is not a file".into());
     }
 
     // Open the replacement image and convert it to RGBA8

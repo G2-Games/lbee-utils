@@ -1,7 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use crate::common::{CzError, CommonHeader};
+use crate::common::{CommonHeader, CzError};
 use crate::compression::{compress, decompress, get_chunk_info};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(
@@ -55,12 +55,18 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
         curr_alpha = data[alpha_index..alpha_index + width as usize].to_vec();
 
         if y % block_height != 0 {
-            curr_line.iter_mut().zip(&prev_line).for_each(|(curr_p, prev_p)| {
-                *curr_p = curr_p.wrapping_add(*prev_p);
-            });
-            curr_alpha.iter_mut().zip(&prev_alpha).for_each(|(curr_a, prev_a)| {
-                *curr_a = curr_a.wrapping_add(*prev_a);
-            });
+            curr_line
+                .iter_mut()
+                .zip(&prev_line)
+                .for_each(|(curr_p, prev_p)| {
+                    *curr_p = curr_p.wrapping_add(*prev_p);
+                });
+            curr_alpha
+                .iter_mut()
+                .zip(&prev_alpha)
+                .for_each(|(curr_a, prev_a)| {
+                    *curr_a = curr_a.wrapping_add(*prev_a);
+                });
         }
 
         // Write the decoded RGBA data to the final buffer
@@ -69,12 +75,7 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
             .step_by(3)
             .zip(&curr_alpha)
             .for_each(|(curr_p, alpha_p)| {
-                output_buf.extend_from_slice(&[
-                    curr_p[0],
-                    curr_p[1],
-                    curr_p[2],
-                    *alpha_p,
-                ]);
+                output_buf.extend_from_slice(&[curr_p[0], curr_p[1], curr_p[2], *alpha_p]);
             });
 
         prev_line.clone_from(&curr_line);
@@ -106,8 +107,18 @@ fn diff_line(header: &CommonHeader, input: &[u8]) -> Vec<u8> {
 
     let mut i = 0;
     for y in 0..height {
-        curr_line = input[i..i + line_byte_count].windows(4).step_by(4).flat_map(|r| &r[0..3]).copied().collect();
-        curr_alpha = input[i..i + line_byte_count].iter().skip(3).step_by(4).copied().collect();
+        curr_line = input[i..i + line_byte_count]
+            .windows(4)
+            .step_by(4)
+            .flat_map(|r| &r[0..3])
+            .copied()
+            .collect();
+        curr_alpha = input[i..i + line_byte_count]
+            .iter()
+            .skip(3)
+            .step_by(4)
+            .copied()
+            .collect();
 
         if y % block_height as u32 != 0 {
             for x in 0..width as usize * 3 {

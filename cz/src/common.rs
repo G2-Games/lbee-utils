@@ -159,7 +159,10 @@ impl CommonHeader {
         self.version
     }
 
-    pub fn set_version<I: TryInto<CzVersion> + Into<u32> + Clone>(&mut self, version: I) -> Result<(), CzError> {
+    pub fn set_version<I: TryInto<CzVersion> + Into<u32> + Clone>(
+        &mut self,
+        version: I,
+    ) -> Result<(), CzError> {
         self.version = match version.clone().try_into() {
             Ok(val) => val,
             Err(_) => return Err(CzError::InvalidVersion(version.into())),
@@ -200,10 +203,7 @@ impl CommonHeader {
         self.unknown
     }
 
-    pub fn write_into<T: WriteBytesExt + Write>(
-        &self,
-        output: &mut T,
-    ) -> Result<(), io::Error> {
+    pub fn write_into<T: WriteBytesExt + Write>(&self, output: &mut T) -> Result<(), io::Error> {
         let magic_bytes = [b'C', b'Z', b'0' + self.version as u8, b'\0'];
 
         output.write_all(&magic_bytes)?;
@@ -324,10 +324,7 @@ impl ExtendedHeader {
         })
     }
 
-    pub fn write_into<T: WriteBytesExt + Write>(
-        &self,
-        output: &mut T,
-    ) -> Result<(), io::Error> {
+    pub fn write_into<T: WriteBytesExt + Write>(&self, output: &mut T) -> Result<(), io::Error> {
         output.write_all(&self.unknown_1)?;
         output.write_u16::<LittleEndian>(self.crop_width)?;
         output.write_u16::<LittleEndian>(self.crop_height)?;

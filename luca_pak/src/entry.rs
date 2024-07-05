@@ -1,4 +1,9 @@
-use std::{error::Error, fs::File, io::{BufWriter, Write}, path::Path};
+use std::{
+    error::Error,
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+};
 
 /// A single file entry in a PAK file
 #[derive(Debug, Clone)]

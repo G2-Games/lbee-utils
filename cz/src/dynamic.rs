@@ -106,10 +106,7 @@ impl DynamicCz {
     /// Save the `DynamicCz` as a CZ# file. The format saved in is determined
     /// from the format in the header. Check [`CommonHeader::set_version()`]
     /// to change the CZ# version.
-    pub fn save_as_cz<P: ?Sized + AsRef<std::path::Path>>(
-        &self,
-        path: &P,
-    ) -> Result<(), CzError> {
+    pub fn save_as_cz<P: ?Sized + AsRef<std::path::Path>>(&self, path: &P) -> Result<(), CzError> {
         let mut out_file = BufWriter::new(File::create(path.as_ref())?);
 
         self.encode(&mut out_file)?;
@@ -122,10 +119,7 @@ impl DynamicCz {
     /// This encodes everything based on options the header which have been
     /// set by the user. For example, to change the version of file to be
     /// saved, use [`CommonHeader::set_version()`]
-    pub fn encode<T: Write>(
-        &self,
-        mut output: &mut T
-    ) -> Result<(), CzError> {
+    pub fn encode<T: Write>(&self, mut output: &mut T) -> Result<(), CzError> {
         let mut header = *self.header();
 
         if header.version() == CzVersion::CZ2 {

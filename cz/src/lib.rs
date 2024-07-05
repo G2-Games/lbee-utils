@@ -13,8 +13,8 @@ mod formats {
     pub(crate) mod cz4;
 }
 
-use std::{io::BufReader, path::Path};
 use common::CzError;
+use std::{io::BufReader, path::Path};
 
 /// Open a CZ# file from a path
 pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<DynamicCz, CzError> {

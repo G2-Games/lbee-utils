@@ -1,17 +1,17 @@
+use byteorder::ReadBytesExt;
+use imagequant::Attributes;
+use rgb::{ComponentSlice, RGBA8};
 use std::{
     collections::HashMap,
     io::{Read, Seek},
 };
-use byteorder::ReadBytesExt;
-use imagequant::Attributes;
-use rgb::{ComponentSlice, RGBA8};
 
 use crate::common::{CommonHeader, CzError};
 
 /// A palette of RGBA values for indexed color
 #[derive(Debug, Clone)]
 pub struct Palette {
-    colors: Vec<RGBA8>
+    colors: Vec<RGBA8>,
 }
 
 impl Palette {
@@ -76,7 +76,8 @@ pub fn rgba_to_indexed(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzErr
         let value = match cache.get(rgba) {
             Some(val) => *val,
             None => {
-                let value = palette.colors()
+                let value = palette
+                    .colors()
                     .iter()
                     .position(|e| e.as_slice() == rgba)
                     .unwrap_or_default() as u8;
@@ -110,12 +111,9 @@ pub fn indexed_gen_palette(
     let mut quant = Attributes::new();
     quant.set_speed(1).unwrap();
 
-    let mut image = quant.new_image(
-        buf,
-        header.width() as usize,
-        header.height() as usize,
-        0.0
-    ).unwrap();
+    let mut image = quant
+        .new_image(buf, header.width() as usize, header.height() as usize, 0.0)
+        .unwrap();
 
     let mut quant_result = quant.quantize(&mut image).unwrap();
 

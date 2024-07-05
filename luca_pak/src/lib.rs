@@ -1,9 +1,13 @@
 mod entry;
 mod header;
 
-use std::{fs::File, io::{self, BufRead, BufReader, Read, Seek, SeekFrom}, path::{Path, PathBuf}};
 use byteorder::{LittleEndian, ReadBytesExt};
 use header::Header;
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader, Read, Seek, SeekFrom},
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 
 use crate::entry::Entry;
@@ -61,7 +65,10 @@ impl Pak {
     }
 
     /// Decode a PAK file from a byte stream
-    pub fn decode<T: Seek + ReadBytesExt + Read>(input: &mut T, path: PathBuf) -> Result<Self, PakError> {
+    pub fn decode<T: Seek + ReadBytesExt + Read>(
+        input: &mut T,
+        path: PathBuf,
+    ) -> Result<Self, PakError> {
         let mut input = BufReader::new(input);
 
         // Read in all the header bytes
@@ -93,7 +100,7 @@ impl Pak {
         dbg!(unknown_pre_data.len());
 
         if input.stream_position()? == header.data_offset() as u64 {
-            return Err(PakError::HeaderError)
+            return Err(PakError::HeaderError);
         }
 
         // Read all the offsets and lengths
@@ -124,7 +131,11 @@ impl Pak {
         let mut entries: Vec<Entry> = Vec::new();
         for i in 0..header.entry_count() as usize {
             // Seek to and read the entry data
-            input.seek(SeekFrom::Start(offsets[i].0 as u64 * header.block_size() as u64)).unwrap();
+            input
+                .seek(SeekFrom::Start(
+                    offsets[i].0 as u64 * header.block_size() as u64,
+                ))
+                .unwrap();
             let mut data = vec![0u8; offsets[i].1 as usize];
             input.read_exact(&mut data).unwrap();
 
@@ -174,8 +185,7 @@ impl Pak {
     pub fn contains_name(&self, name: String) -> bool {
         self.entries
             .iter()
-            .find(|e|
-                e.name.as_ref().is_some_and(|n| n == &name)
-            ).is_some()
+            .find(|e| e.name.as_ref().is_some_and(|n| n == &name))
+            .is_some()
     }
 }

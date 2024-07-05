@@ -1,7 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use crate::common::{CzError, CommonHeader};
+use crate::common::{CommonHeader, CzError};
 use crate::compression::{compress, decompress, get_chunk_info};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(
@@ -55,9 +55,10 @@ fn line_diff(header: &CommonHeader, data: &[u8]) -> Vec<u8> {
         curr_line = data[index..index + line_byte_count].to_vec();
 
         if y % block_height as u32 != 0 {
-            curr_line.iter_mut().zip(&prev_line).for_each(|(curr_p, prev_p)| {
-                *curr_p = curr_p.wrapping_add(*prev_p)
-            });
+            curr_line
+                .iter_mut()
+                .zip(&prev_line)
+                .for_each(|(curr_p, prev_p)| *curr_p = curr_p.wrapping_add(*prev_p));
         }
 
         prev_line.clone_from(&curr_line);

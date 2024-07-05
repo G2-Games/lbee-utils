@@ -110,10 +110,7 @@ pub fn decompress<T: Seek + ReadBytesExt + Read>(
     Ok(output_buf)
 }
 
-fn decompress_lzw(
-    input_data: &[u16],
-    size: usize
-) -> Vec<u8> {
+fn decompress_lzw(input_data: &[u16], size: usize) -> Vec<u8> {
     let mut dictionary: HashMap<u16, Vec<u8>> = HashMap::new();
     for i in 0..256 {
         dictionary.insert(i as u16, vec![i as u8]);
@@ -146,7 +143,6 @@ fn decompress_lzw(
     result
 }
 
-
 /// Decompress an LZW compressed stream like CZ2
 pub fn decompress2<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
@@ -166,10 +162,7 @@ pub fn decompress2<T: Seek + ReadBytesExt + Read>(
     Ok(output_buf)
 }
 
-fn decompress_lzw2(
-    input_data: &[u8],
-    size: usize
-) -> Vec<u8> {
+fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
     let mut data = input_data.to_vec();
     data[0] = 0;
     let mut dictionary = HashMap::new();
@@ -219,10 +212,7 @@ fn decompress_lzw2(
     result
 }
 
-pub fn compress(
-    data: &[u8],
-    size: usize,
-) -> (Vec<u8>, CompressionInfo) {
+pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     let mut size = size;
     if size == 0 {
         size = 0xFEFD
@@ -243,7 +233,7 @@ pub fn compress(
     loop {
         (count, part_data, last) = compress_lzw(&data[offset..], size, last);
         if count == 0 {
-            break
+            break;
         }
         offset += count;
 
@@ -253,7 +243,7 @@ pub fn compress(
 
         output_info.chunks.push(ChunkInfo {
             size_compressed: part_data.len(),
-            size_raw: count
+            size_raw: count,
         });
 
         output_info.chunk_count += 1;
@@ -271,11 +261,7 @@ pub fn compress(
     (output_buf, output_info)
 }
 
-fn compress_lzw(
-    data: &[u8],
-    size: usize,
-    last: Vec<u8>
-) -> (usize, Vec<u16>, Vec<u8>) {
+fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Vec<u8>) {
     let mut count = 0;
     let mut dictionary = HashMap::new();
     for i in 0..=255 {
@@ -305,7 +291,7 @@ fn compress_lzw(
         count += 1;
 
         if size > 0 && compressed.len() == size {
-            break
+            break;
         }
     }
 
@@ -316,21 +302,18 @@ fn compress_lzw(
                 compressed.push(*dictionary.get(&vec![c]).unwrap());
             }
         }
-        return (count, compressed, Vec::new())
+        return (count, compressed, Vec::new());
     } else if compressed.len() < size {
         if !last_element.is_empty() {
             compressed.push(*dictionary.get(&last_element).unwrap());
         }
-        return (count, compressed, Vec::new())
+        return (count, compressed, Vec::new());
     }
 
     (count, compressed, last_element)
 }
 
-pub fn compress2(
-    data: &[u8],
-    size: usize
-) -> (Vec<u8>, CompressionInfo) {
+pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     let size = if size == 0 { 0x87BDF } else { size };
 
     let mut part_data;
@@ -373,11 +356,7 @@ pub fn compress2(
     (output_buf, output_info)
 }
 
-fn compress_lzw2(
-    data: &[u8],
-    size: usize,
-    last: Vec<u8>
-) -> (usize, Vec<u8>, Vec<u8>) {
+fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
     let mut data = data.to_vec();
     if !data.is_empty() {
         data[0] = 0;
