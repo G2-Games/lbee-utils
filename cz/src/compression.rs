@@ -37,6 +37,7 @@ pub struct CompressionInfo {
 }
 
 impl CompressionInfo {
+    /// Write the compression information into a byte stream
     pub fn write_into<T: WriteBytesExt + Write>(
         &self,
         output: &mut T,
@@ -52,10 +53,11 @@ impl CompressionInfo {
     }
 }
 
-/// Get info about the compression chunks
+/// Get info about the compression chunks.
 ///
-/// These are defined by a length value, followed by the number of data chunks
-/// that length value says split into compressed and original size u32 values
+/// These are defined by a value specifying the number of chunks, followed by
+/// a number of data chunks, the number of which are specified by the previous
+/// number, and are split into compressed and original size u32 values.
 pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
     bytes: &mut T,
 ) -> Result<CompressionInfo, CzError> {
@@ -212,8 +214,8 @@ fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
     result
 }
 
-pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
-    let mut size = size;
+pub fn compress(data: &[u8], mut size: usize) -> (Vec<u8>, CompressionInfo) {
+    use gxhash::HashMapExt;
     if size == 0 {
         size = 0xFEFD
     }
@@ -230,15 +232,21 @@ pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
         ..Default::default()
     };
 
+    let mut dictionary = gxhash::HashMap::new();
     loop {
-        (count, part_data, last) = compress_lzw(&data[offset..], size, last);
+        let timer = std::time::Instant::now();
+        (count, part_data, last) = compress_lzw(&data[offset..], size, last, &mut dictionary);
+        println!("Compression took {}ms", timer.elapsed().as_micros() as f32 / 1000.0);
+        dictionary.clear();
         if count == 0 {
+            // No more data to compress
             break;
         }
+
         offset += count;
 
         for d in &part_data {
-            output_buf.write_all(&d.to_le_bytes()).unwrap();
+            output_buf.write_u16::<LittleEndian>(*d).unwrap();
         }
 
         output_info.chunks.push(ChunkInfo {
@@ -252,6 +260,7 @@ pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     if output_info.chunk_count == 0 {
         panic!("No chunks compressed!")
     } else if output_info.chunk_count != 1 {
+        // TODO: Find out why this is necessary
         output_info.chunks[0].size_raw -= 1;
         output_info.chunks[output_info.chunk_count - 1].size_raw += 1;
     }
@@ -261,29 +270,35 @@ pub fn compress(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     (output_buf, output_info)
 }
 
-fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Vec<u8>) {
+fn compress_lzw(
+    data: &[u8],
+    size: usize,
+    last: Vec<u8>,
+    dict: &mut gxhash::HashMap<Vec<u8>, u16>
+) -> (usize, Vec<u16>, Vec<u8>) {
     let mut count = 0;
-    let mut dictionary = HashMap::new();
+
     for i in 0..=255 {
-        dictionary.insert(vec![i], i as u16);
+        dict.insert(vec![i], i as u16);
     }
-    let mut dictionary_count = (dictionary.len() + 1) as u16;
+    let mut dictionary_count = (dict.len() + 1) as u16;
 
     let mut element = Vec::new();
     if !last.is_empty() {
         element = last
     }
 
-    let mut compressed = Vec::with_capacity(size);
+    let mut entry: Vec<u8>;
+    let mut compressed = Vec::new();
     for c in data {
-        let mut entry = element.clone();
+        entry = element.clone();
         entry.push(*c);
 
-        if dictionary.contains_key(&entry) {
+        if dict.contains_key(&entry) {
             element = entry
         } else {
-            compressed.push(*dictionary.get(&element).unwrap());
-            dictionary.insert(entry, dictionary_count);
+            compressed.push(*dict.get(&element).unwrap());
+            dict.insert(entry, dictionary_count);
             element = vec![*c];
             dictionary_count += 1;
         }
@@ -299,13 +314,13 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
     if compressed.is_empty() {
         if !last_element.is_empty() {
             for c in last_element {
-                compressed.push(*dictionary.get(&vec![c]).unwrap());
+                compressed.push(*dict.get(&vec![c]).unwrap());
             }
         }
         return (count, compressed, Vec::new());
     } else if compressed.len() < size {
         if !last_element.is_empty() {
-            compressed.push(*dictionary.get(&last_element).unwrap());
+            compressed.push(*dict.get(&last_element).unwrap());
         }
         return (count, compressed, Vec::new());
     }

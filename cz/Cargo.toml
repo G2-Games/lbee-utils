@@ -17,3 +17,4 @@ rgb = "0.8"
 
 # Only active on feature "png"
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }
+gxhash = "3.4.1"
