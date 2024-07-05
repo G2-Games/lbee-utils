@@ -112,12 +112,19 @@ impl DynamicCz {
     ) -> Result<(), CzError> {
         let mut out_file = BufWriter::new(File::create(path.as_ref())?);
 
-        self.write(&mut out_file)?;
+        self.encode(&mut out_file)?;
 
         Ok(())
     }
 
-    pub fn write<T: Write + Seek>(&self, mut output: &mut T) -> Result<(), CzError> {
+    /// Encode the CZ file into a byte stream.
+    /// This encodes everything based on options the header which have been
+    /// set by the user. For example, to change the version of file to be
+    /// saved, use [`CommonHeader::set_version()`]
+    pub fn encode<T: Write + Seek>(
+        &self,
+        mut output: &mut T
+    ) -> Result<(), CzError> {
         let mut header = *self.header();
 
         if header.version() == CzVersion::CZ2 {
@@ -126,7 +133,7 @@ impl DynamicCz {
         header.write_into(&mut output)?;
 
         if header.version() == CzVersion::CZ2 {
-            // CZ2 files have this odd section instead of an extended header...?
+            // TODO: CZ2 files have this odd section instead of an extended header...?
             output.write_all(&[0, 0, 0])?;
         } else if let Some(ext) = self.header_extended {
             ext.write_into(&mut output)?;

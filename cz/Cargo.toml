@@ -10,8 +10,10 @@ A encoder/decoder for CZ# image files used in the LUCA System Engine.
 png = ["dep:image"]
 
 [dependencies]
-byteorder = "1.5.0"
-thiserror = "1.0.59"
-imagequant = "4.3.1"
+byteorder = "1.5"
+thiserror = "1.0"
+imagequant = "4.3"
+rgb = "0.8"
+
+# Only active on feature "png"
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }
-rgb = "0.8.40"
