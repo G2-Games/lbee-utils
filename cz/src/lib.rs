@@ -13,6 +13,16 @@ mod formats {
     pub(crate) mod cz4;
 }
 
+use std::{io::BufReader, path::Path};
+use common::CzError;
+
+/// Open a CZ# file from a path
+pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<DynamicCz, CzError> {
+    let mut img_file = BufReader::new(std::fs::File::open(path)?);
+
+    DynamicCz::decode(&mut img_file)
+}
+
 #[doc(inline)]
 pub use dynamic::DynamicCz;
 

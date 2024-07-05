@@ -1,34 +1,30 @@
 use byteorder::ReadBytesExt;
+use rgb::ComponentSlice;
 use std::{
     fs::File,
-    io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
-    path::Path,
+    io::{BufWriter, Read, Seek, SeekFrom, Write},
 };
 
 use crate::{
-    color::{apply_palette, get_palette, indexed_gen_palette, rgba_to_indexed, Palette},
+    color::{get_palette, indexed_gen_palette, indexed_to_rgba, rgba_to_indexed, Palette},
     common::{CommonHeader, CzError, CzVersion, ExtendedHeader},
     formats::{cz0, cz1, cz2, cz3, cz4},
 };
 
-/// A CZ# interface which abstracts the CZ# generic file interface for
-/// convenience.
-#[derive(Debug)]
+/// A CZ# interface which can open and save any CZ file type.
+#[derive(Debug, Clone)]
 pub struct DynamicCz {
     header_common: CommonHeader,
     header_extended: Option<ExtendedHeader>,
+
+    /// A palette of RGBA values for indexed color
     palette: Option<Palette>,
+
+    /// 32bpp RGBA bitmap representation of the file contents
     bitmap: Vec<u8>,
 }
 
 impl DynamicCz {
-    /// Open a CZ# file from a path
-    pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<Self, CzError> {
-        let mut img_file = BufReader::new(std::fs::File::open(path)?);
-
-        Self::decode(&mut img_file)
-    }
-
     /// Decode a CZ# file from anything which implements [`Read`] and [`Seek`]
     ///
     /// The input must begin with the
@@ -74,12 +70,11 @@ impl DynamicCz {
 
         match header_common.depth() {
             4 => {
-                eprintln!("Files with a bit depth of 4 are not yet supported");
-                todo!()
+                todo!("Files with a bit depth of 4 are not yet supported")
             }
             8 => {
                 if let Some(palette) = &palette {
-                    bitmap = apply_palette(&bitmap, palette)?;
+                    bitmap = indexed_to_rgba(&bitmap, palette)?;
                 } else {
                     return Err(CzError::PaletteError);
                 }
@@ -111,20 +106,30 @@ impl DynamicCz {
     /// Save the `DynamicCz` as a CZ# file. The format saved in is determined
     /// from the format in the header. Check [`CommonHeader::set_version()`]
     /// to change the CZ# version.
-    pub fn save_as_cz<T: Into<std::path::PathBuf>>(&self, path: T) -> Result<(), CzError> {
-        let mut out_file = BufWriter::new(File::create(path.into())?);
+    pub fn save_as_cz<P: ?Sized + AsRef<std::path::Path>>(
+        &self,
+        path: &P,
+    ) -> Result<(), CzError> {
+        let mut out_file = BufWriter::new(File::create(path.as_ref())?);
+
+        self.write(&mut out_file)?;
+
+        Ok(())
+    }
+
+    pub fn write<T: Write + Seek>(&self, mut output: &mut T) -> Result<(), CzError> {
         let mut header = *self.header();
 
         if header.version() == CzVersion::CZ2 {
             header.set_length(0x12)
         }
-        header.write_into(&mut out_file)?;
+        header.write_into(&mut output)?;
 
         if header.version() == CzVersion::CZ2 {
             // CZ2 files have this odd section instead of an extended header...?
-            out_file.write_all(&[0, 0, 0])?;
+            output.write_all(&[0, 0, 0])?;
         } else if let Some(ext) = self.header_extended {
-            ext.write_into(&mut out_file)?;
+            ext.write_into(&mut output)?;
         }
 
         let output_bitmap;
@@ -139,8 +144,8 @@ impl DynamicCz {
                     // Use the existing palette to palette the image
                     output_bitmap = rgba_to_indexed(self.bitmap(), pal)?;
 
-                    for rgba in &pal.colors {
-                        out_file.write_all(&rgba.0)?;
+                    for rgba in pal.colors() {
+                        output.write_all(rgba.as_slice())?;
                     }
                 } else {
                     // Generate a palette and corresponding indexed bitmap if there is none
@@ -150,12 +155,7 @@ impl DynamicCz {
                     let palette = result.1;
 
                     for rgba in palette {
-                        let mut rgba_clone = rgba.0;
-                        if false {
-                            // TODO: Make a toggle for this
-                            rgba_clone[0..3].reverse();
-                        }
-                        out_file.write_all(&rgba_clone)?;
+                        output.write_all(rgba.as_slice())?;
                     }
                 }
             }
@@ -179,11 +179,11 @@ impl DynamicCz {
         }
 
         match self.header_common.version() {
-            CzVersion::CZ0 => cz0::encode(&mut out_file, &output_bitmap)?,
-            CzVersion::CZ1 => cz1::encode(&mut out_file, &output_bitmap)?,
-            CzVersion::CZ2 => cz2::encode(&mut out_file, &output_bitmap)?,
-            CzVersion::CZ3 => cz3::encode(&mut out_file, &output_bitmap, &self.header_common)?,
-            CzVersion::CZ4 => cz4::encode(&mut out_file, &output_bitmap, &self.header_common)?,
+            CzVersion::CZ0 => cz0::encode(&mut output, &output_bitmap)?,
+            CzVersion::CZ1 => cz1::encode(&mut output, &output_bitmap)?,
+            CzVersion::CZ2 => cz2::encode(&mut output, &output_bitmap)?,
+            CzVersion::CZ3 => cz3::encode(&mut output, &output_bitmap, &self.header_common)?,
+            CzVersion::CZ4 => cz4::encode(&mut output, &output_bitmap, &self.header_common)?,
             CzVersion::CZ5 => todo!(),
         }
 
@@ -196,7 +196,7 @@ impl DynamicCz {
     /// which is the highest encountered in CZ# files, therefore saving them
     /// as a PNG of the same or better quality is lossless.
     #[cfg(feature = "png")]
-    pub fn save_as_png<P: ?Sized + AsRef<Path>>(
+    pub fn save_as_png<P: ?Sized + AsRef<std::path::Path>>(
         &self,
         path: &P,
     ) -> Result<(), image::error::EncodingError> {

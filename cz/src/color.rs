@@ -2,26 +2,39 @@ use std::{
     collections::HashMap,
     io::{Read, Seek},
 };
-
 use byteorder::ReadBytesExt;
 use imagequant::Attributes;
+use rgb::{ComponentSlice, RGBA8};
 
 use crate::common::{CommonHeader, CzError};
 
-#[derive(Debug, Clone, Copy)]
-pub struct Rgba(pub [u8; 4]);
+/// A palette of RGBA values for indexed color
+#[derive(Debug, Clone)]
+pub struct Palette {
+    colors: Vec<RGBA8>
+}
 
-impl From<[u8; 4]> for Rgba {
-    fn from(value: [u8; 4]) -> Self {
-        Self([value[0], value[1], value[2], value[3]])
+impl Palette {
+    /// Get the list of colors from the palette
+    pub fn colors(&self) -> &Vec<RGBA8> {
+        &self.colors
+    }
+
+    /// Consume the palette, returning a list of colors
+    pub fn into_colors(self) -> Vec<RGBA8> {
+        self.colors
+    }
+
+    pub fn len(&self) -> usize {
+        self.colors.len()
+    }
+
+    pub fn get(&self, index: usize) -> Option<&RGBA8> {
+        self.colors.get(index)
     }
 }
 
-#[derive(Debug)]
-pub struct Palette {
-    pub colors: Vec<Rgba>
-}
-
+/// Get a palette from the input stream, beginning where the palette starts.
 pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     input: &mut T,
     num_colors: usize,
@@ -37,15 +50,15 @@ pub fn get_palette<T: Seek + ReadBytesExt + Read>(
     Ok(Palette { colors: colormap })
 }
 
-/// Take a bitmap of indicies, and map a given palette to it, returning a new
-/// RGBA bitmap
-pub fn apply_palette(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzError> {
+/// Takes an indexed color bitmap and maps a given palette to it, returning an
+/// RGBA bitmap.
+pub fn indexed_to_rgba(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
 
     for byte in input.iter() {
-        let color = palette.colors.get(*byte as usize);
+        let color = palette.get(*byte as usize);
         if let Some(color) = color {
-            output_map.extend_from_slice(&color.0);
+            output_map.extend_from_slice(color.as_slice());
         } else {
             return Err(CzError::PaletteError);
         }
@@ -54,6 +67,7 @@ pub fn apply_palette(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzError
     Ok(output_map)
 }
 
+/// Takes an RGBA bitmap and maps the colors in it to indices of an indexed bitmap.
 pub fn rgba_to_indexed(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzError> {
     let mut output_map = Vec::new();
     let mut cache = HashMap::new();
@@ -62,7 +76,11 @@ pub fn rgba_to_indexed(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzErr
         let value = match cache.get(rgba) {
             Some(val) => *val,
             None => {
-                let value = palette.colors.iter().position(|e| e.0 == rgba).unwrap_or_default() as u8;
+                let value = palette.colors()
+                    .iter()
+                    .position(|e| e.as_slice() == rgba)
+                    .unwrap_or_default() as u8;
+
                 cache.insert(rgba, value);
                 value
             }
@@ -74,10 +92,11 @@ pub fn rgba_to_indexed(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzErr
     Ok(output_map)
 }
 
+/// Generate and a bitmap for a given input of RGBA pixels.
 pub fn indexed_gen_palette(
     input: &[u8],
     header: &CommonHeader,
-) -> Result<(Vec<u8>, Vec<Rgba>), CzError> {
+) -> Result<(Vec<u8>, Vec<RGBA8>), CzError> {
     let size = (header.width() as u32 * header.height() as u32) * 4;
 
     let mut buf: Vec<u8> = vec![0; size as usize];
@@ -102,22 +121,22 @@ pub fn indexed_gen_palette(
 
     let (palette, indicies) = quant_result.remapped(&mut image).unwrap();
 
-    let gen_palette: Vec<Rgba> = palette
+    let gen_palette: Vec<RGBA8> = palette
         .iter()
-        .map(|c| Rgba([c.r, c.g, c.b, c.a]))
+        .map(|c| RGBA8::from([c.r, c.g, c.b, c.a]))
         .collect();
 
-    let mut output_palette = vec![Rgba([0, 0, 0, 0]); 256];
+    let mut output_palette = vec![RGBA8::from([0, 0, 0, 0]); 256];
     output_palette[0..gen_palette.len()].copy_from_slice(&gen_palette);
 
     Ok((indicies, output_palette))
 }
 
-pub fn _default_palette() -> Vec<Rgba> {
+pub fn _default_palette() -> Vec<RGBA8> {
     let mut colormap = Vec::new();
 
     for i in 0..=0xFF {
-        colormap.push(Rgba([0xFF, 0xFF, 0xFF, i]))
+        colormap.push(RGBA8::from([0xFF, 0xFF, 0xFF, i]))
     }
 
     colormap

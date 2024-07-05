@@ -1,4 +1,3 @@
-use cz::DynamicCz;
 use std::path::{Path, PathBuf};
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
 
@@ -87,7 +86,7 @@ fn main() {
                     let mut final_path = output.clone().unwrap();
                     final_path.push(filename);
 
-                    let cz = match DynamicCz::open(&path) {
+                    let cz = match cz::open(&path) {
                         Ok(cz) => cz,
                         Err(_) => {
                             Error::raw(
@@ -101,7 +100,7 @@ fn main() {
                     cz.save_as_png(&final_path).unwrap();
                 }
             } else {
-                let cz = DynamicCz::open(input).unwrap();
+                let cz = cz::open(input).unwrap();
 
                 if let Some(output) = output {
                     cz.save_as_png(output).unwrap();
@@ -209,7 +208,7 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     let repl_img = image::open(&replacement_path)?.to_rgba8();
 
     // Open the original CZ file
-    let mut cz = DynamicCz::open(&path)?;
+    let mut cz = cz::open(&path)?;
 
     // Set CZ header parameters and the new bitmap
     cz.header_mut().set_width(repl_img.width() as u16);
