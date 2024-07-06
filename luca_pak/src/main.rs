@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufWriter};
+use std::{fs::File, io::{BufWriter, Read}};
 use luca_pak::Pak;
 
 fn main() {
@@ -38,14 +38,19 @@ fn main() {
     }
     */
 
-    let pak = Pak::open("MANUAL.PAK").unwrap();
-    println!("{:#?}", pak.header());
+    let mut pak = Pak::open("MANUAL.PAK").unwrap();
+    //println!("{:#?}", pak.header());
     //println!("{:#032b}", pak.header().flags().0);
 
+    /*
     for (i, entry) in pak.entries().iter().enumerate() {
-        //println!("{i:03}: {:06.2} kB - {}", entry.len() as f32 / 1_000.0, entry.name().as_ref().unwrap());
+        println!("{i:03}: {:06.2} kB - {}", entry.len() as f32 / 1_000.0, entry.name().as_ref().unwrap());
         entry.save("./output/").unwrap();
     }
+    */
+
+    let rep_cz_data: Vec<u8> = std::fs::read("en_manual01_Linkto_2_6").unwrap();
+    pak.replace(4, &rep_cz_data).unwrap();
 
     let mut output = BufWriter::new(File::create("MANUAL-modified.PAK").unwrap());
     pak.encode(&mut output).unwrap();

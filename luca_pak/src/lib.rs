@@ -25,6 +25,9 @@ pub enum PakError {
 
     #[error("Malformed header information")]
     HeaderError,
+
+    #[error("Index not found")]
+    IndexError,
 }
 
 /// A full PAK file with a header and its contents
@@ -196,7 +199,10 @@ impl Pak {
         })
     }
 
-    pub fn encode<T: Write + Seek>(&self, mut output: &mut T) -> Result<(), PakError> {
+    pub fn encode<T: Write + Seek>(
+        &self,
+        mut output: &mut T
+    ) -> Result<(), PakError> {
         let mut block_offset = 0;
         self.header.write_into(&mut output)?;
 
@@ -245,6 +251,34 @@ impl Pak {
             output.write_all(&entry.data)?;
             output.write_all(&vec![0u8; remainder as usize])?;
             block_offset += block_size as u32;
+        }
+
+        Ok(())
+    }
+
+    pub fn replace(
+        &mut self,
+        index: usize,
+        replacement_bytes: &[u8]
+    ) -> Result<(), PakError> {
+        let block_size = self.header().block_size();
+
+        let replaced_entry = if let Some(entry) = self.entries.get_mut(index) {
+            entry
+        } else {
+            return Err(PakError::IndexError)
+        };
+
+        // Replace the entry data
+        replaced_entry.data = replacement_bytes.to_vec();
+        replaced_entry.length = replaced_entry.data.len() as u32;
+
+        let mut next_offset = replaced_entry.offset + replaced_entry.length.div_ceil(block_size);
+
+        for entry in self.entries.iter_mut().skip(index + 1) {
+            entry.offset = next_offset;
+
+            next_offset = entry.offset + entry.length.div_ceil(block_size);
         }
 
         Ok(())
