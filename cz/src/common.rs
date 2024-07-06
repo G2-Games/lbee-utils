@@ -116,10 +116,7 @@ impl CommonHeader {
         self.length = length
     }
 
-    pub fn from_bytes<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Self, CzError>
-    where
-        Self: Sized,
-    {
+    pub fn from_bytes<T: Seek + Read>(bytes: &mut T) -> Result<Self, CzError> {
         let mut magic = [0u8; 4];
         bytes.read_exact(&mut magic)?;
 
@@ -203,7 +200,7 @@ impl CommonHeader {
         self.unknown
     }
 
-    pub fn write_into<T: WriteBytesExt + Write>(&self, output: &mut T) -> Result<(), io::Error> {
+    pub fn write_into<T: Write>(&self, output: &mut T) -> Result<(), io::Error> {
         let magic_bytes = [b'C', b'Z', b'0' + self.version as u8, b'\0'];
 
         output.write_all(&magic_bytes)?;

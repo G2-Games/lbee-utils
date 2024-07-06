@@ -1,3 +1,8 @@
+use std::io::{self, Write};
+use byteorder::WriteBytesExt;
+
+use crate::LE;
+
 /// The header of a PAK file
 #[derive(Debug, Clone)]
 pub struct Header {
@@ -14,10 +19,24 @@ pub struct Header {
     pub(super) unknown3: u32,
     pub(super) unknown4: u32,
 
-    pub(super) flags: u32,
+    pub(super) flags: PakFlags,
 }
 
 impl Header {
+    pub fn write_into<T: Write>(&self, output: &mut T) -> Result<(), io::Error> {
+        output.write_u32::<LE>(self.data_offset)?;
+        output.write_u32::<LE>(self.entry_count)?;
+        output.write_u32::<LE>(self.id_start)?;
+        output.write_u32::<LE>(self.block_size)?;
+        output.write_u32::<LE>(self.unknown1)?;
+        output.write_u32::<LE>(self.unknown2)?;
+        output.write_u32::<LE>(self.unknown3)?;
+        output.write_u32::<LE>(self.unknown4)?;
+        output.write_u32::<LE>(self.flags.0)?;
+
+        Ok(())
+    }
+
     pub fn block_size(&self) -> u32 {
         self.block_size
     }
@@ -34,7 +53,23 @@ impl Header {
         self.data_offset
     }
 
-    pub fn flags(&self) -> u32 {
-        self.flags
+    pub fn flags(&self) -> &PakFlags {
+        &self.flags
+    }
+}
+
+/// Flags which define different features in a PAK file
+#[derive(Clone, Debug)]
+pub struct PakFlags(pub u32);
+
+impl PakFlags {
+    pub fn has_unknown_data1(&self) -> bool {
+        // 0b00100000000
+        self.0 & 0x100 != 0
+    }
+
+    pub fn has_names(&self) -> bool {
+        // 0b01000000000
+        self.0 & 512 != 0
     }
 }

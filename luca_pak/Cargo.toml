@@ -10,6 +10,8 @@ authors.workspace = true
 
 [dependencies]
 byteorder = "1.5.0"
+colog = "1.3.0"
+log = "0.4.22"
 thiserror = "1.0.61"
 
 [lints]

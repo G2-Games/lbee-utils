@@ -262,7 +262,7 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     cz.header_mut().set_width(repl_img.width() as u16);
     cz.header_mut().set_height(repl_img.height() as u16);
     cz.set_bitmap(repl_img.into_raw());
-    cz.remove_palette();
+    cz.clear_palette();
 
     if let Some(depth) = depth {
         cz.header_mut().set_depth(*depth)

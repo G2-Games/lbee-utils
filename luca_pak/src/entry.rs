@@ -15,17 +15,17 @@ pub struct Entry {
     /// The size of the entry in bytes
     pub(super) length: u32,
 
-    /// The actual data which make up the entry
-    pub(super) data: Vec<u8>,
+    /// ???
+    pub(super) unknown1: Option<[u8; 12]>,
 
     /// The name of the entry as stored in the PAK
     pub(super) name: Option<String>,
 
-    pub(super) unknown1: Option<u32>,
-
     /// The ID of the entry, effectively an index
     pub(super) id: u32,
-    pub(super) replace: bool, // TODO: Look into a better way to indicate this
+
+    /// The actual data which makes up the entry
+    pub(super) data: Vec<u8>,
 }
 
 impl Entry {
@@ -43,7 +43,7 @@ impl Entry {
 
         // Save the file to <folder> + <file name>
         if let Some(name) = &self.name {
-            path.push(&name);
+            path.push(name);
         } else {
             path.push(&self.id.to_string())
         }
@@ -54,6 +54,10 @@ impl Entry {
         out_file.flush()?;
 
         Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        self.length as usize
     }
 
     /// Get the raw byte data of an [`Entry`]
