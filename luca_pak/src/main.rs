@@ -1,5 +1,5 @@
 use std::{fs, path::PathBuf};
-use clap::{error::ErrorKind, Error, Parser, Subcommand};
+use clap::{error::{Error, ErrorKind}, Parser, Subcommand};
 use luca_pak::Pak;
 
 #[derive(Parser)]
@@ -31,9 +31,15 @@ enum Commands {
 
         /// The name of the file within the PAK you wish to replace.
         /// If not provided, the filename will be used.
-        /// Icompatible with batch mode.
+        /// Incompatible with batch mode, and ID.
         #[arg(short, long)]
         name: Option<String>,
+
+        /// The ID of the file within the PAK you wish to replace.
+        /// If not provided, the filename will be used.
+        /// Incompatible with batch mode, and name.
+        #[arg(short, long)]
+        id: Option<u32>,
 
         /// File or folder to use as a replacement
         #[arg(value_name = "REPLACEMENT")]
@@ -48,44 +54,34 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    if !cli.input.is_file() {
-        Error::raw(ErrorKind::ValueValidation,
-            "The input file/folder provided is not a file\n",
-        ).exit()
-    }
-
-    let mut pak = Pak::open(&cli.input).unwrap();
+    let mut pak = match Pak::open(&cli.input) {
+        Ok(pak) => pak,
+        Err(err) => fmt_error(&format!("Could not open PAK file: {}", err)).exit()
+    };
 
     match cli.command {
         Commands::Extract { output } => {
-            if !output.is_dir() {
-                Error::raw(ErrorKind::ValueValidation,
-                    "The output given was not a directory\n",
-                ).exit()
+            if output.exists() && !output.is_dir() {
+                fmt_error("The output given was not a directory").exit()
+            } else if !output.exists() {
+                fs::create_dir(&output).unwrap();
             }
 
             for entry in pak.entries() {
                 entry.save(&output).unwrap();
             }
         },
-        Commands::Replace { batch, name, replacement, output } => {
-            if !output.is_file() {
-                Error::raw(ErrorKind::ValueValidation,
-                    "Replacement output must be a file\n",
-                ).exit()
+        Commands::Replace { batch, name, id, replacement, output } => {
+            if id.is_some() && name.is_some() {
+                fmt_error("Cannot use ID and name together").exit()
             }
-
             if batch {
-                if name.is_some() {
-                    Error::raw(ErrorKind::ValueValidation,
-                        "Cannot use name with batch\n",
-                    ).exit()
+                if name.is_some() || id.is_some() {
+                    fmt_error("Cannot use name or ID with batch").exit()
                 }
 
                 if !replacement.is_dir() {
-                    Error::raw(ErrorKind::ValueValidation,
-                        "Batch replacement must be a directory\n",
-                    ).exit()
+                    fmt_error("Batch replacement must be a directory").exit()
                 }
 
                 for entry in fs::read_dir(replacement).unwrap() {
@@ -97,23 +93,21 @@ fn main() {
                             .to_string_lossy()
                             .into();
 
-                    dbg!(&search_name);
+                    let parsed_id: Option<u32> = search_name.parse().ok();
 
                     // Read in the replacement file to a vec
                     let rep_data: Vec<u8> = std::fs::read(entry.path()).unwrap();
-                    if let Err(err) = pak.replace_by_name(search_name, &rep_data) {
-                        Error::raw(ErrorKind::ValueValidation,
-                            format!("Failed to replace file in PAK: {}\n", err),
-                        ).exit()
+
+                    // Try replacing by name, if that fails, replace by parsed ID
+                    if pak.replace_by_name(search_name, &rep_data).is_err() {
+                        fmt_error("Could not replace entry in PAK: Could not find name").print().unwrap()
+                    } else if parsed_id.is_some() && pak.replace_by_id(parsed_id.unwrap(), &rep_data).is_err() {
+                        fmt_error("Could not replace entry in PAK: ID is invalid").print().unwrap()
                     }
                 }
-
-                pak.save(&output).unwrap();
             } else {
                 if !replacement.is_file() {
-                    Error::raw(ErrorKind::ValueValidation,
-                        "Replacement input must be a file\n",
-                    ).exit()
+                    fmt_error("Replacement input must be a file").exit()
                 }
 
                 let search_name = if let Some(name) = name {
@@ -126,24 +120,36 @@ fn main() {
                         .into()
                 };
 
+                let search_id = if id.is_some() {
+                    id
+                } else if let Ok(id) = search_name.parse::<u32>() {
+                    Some(id)
+                } else {
+                    None
+                };
+
                 // Read in the replacement file to a vec
                 let rep_data: Vec<u8> = std::fs::read(replacement).unwrap();
-                if let Err(err) = pak.replace_by_name(search_name, &rep_data) {
-                    Error::raw(ErrorKind::ValueValidation,
-                        format!("Failed to replace file in PAK: {}\n", err),
-                    ).exit()
+                if id.is_some() {
+                    if pak.replace_by_id(search_id.unwrap(), &rep_data).is_err() {
+                        fmt_error("Could not replace entry in PAK: ID is invalid").exit()
+                    }
+                } else if pak.replace_by_name(search_name, &rep_data).is_err() {
+                    fmt_error("Could not replace entry in PAK: Could not find name").exit()
                 }
 
                 pak.save(&output).unwrap();
             }
-        },
+
+            pak.save(&output).unwrap();
+        }
     }
+}
 
-    /*
-    let rep_cz_data: Vec<u8> = std::fs::read("en_manual01_Linkto_2_6.cz1").unwrap();
-    pak.replace(4, &rep_cz_data).unwrap();
-
-    let mut output = BufWriter::new(File::create("MANUAL-modified.PAK").unwrap());
-    pak.encode(&mut output).unwrap();
-    */
+#[inline(always)]
+fn fmt_error(message: &str) -> Error {
+    Error::raw(
+        ErrorKind::ValueValidation,
+        format!("{}\n", message),
+    )
 }

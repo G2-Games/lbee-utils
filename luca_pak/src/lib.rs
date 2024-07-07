@@ -257,7 +257,7 @@ impl Pak {
             debug!("remainder {}", remainder);
             debug!("block_offset {} - expected offset {}", block_offset, entry.offset);
             output.write_all(&entry.data)?;
-            output.write_all(&vec![0u8; remainder as usize])?;
+            output.write_all(&vec![0u8; remainder])?;
             block_offset += block_size as u32;
         }
 
@@ -331,6 +331,23 @@ impl Pak {
         Ok(())
     }
 
+    pub fn replace_by_id(
+        &mut self,
+        id: u32,
+        replacement_bytes: &[u8],
+    ) -> Result<(), PakError> {
+        let entry = self.get_entry_by_id(id);
+        let index = if let Some(entry) = entry {
+            entry.index
+        } else {
+            return Err(PakError::IndexError)
+        };
+
+        self.replace(index, replacement_bytes)?;
+
+        Ok(())
+    }
+
     /// Get the header information from the PAK
     pub fn header(&self) -> &Header {
         &self.header
@@ -350,7 +367,7 @@ impl Pak {
         self.entries
             .iter_mut()
             .find(|e|
-                e.name.as_ref().is_some_and(|n| n == &name)
+                e.name.as_ref().is_some_and(|n| n == name)
             )
     }
 
@@ -364,6 +381,6 @@ impl Pak {
         self.entries
             .iter()
             .any(|e| e.name.as_ref()
-            .is_some_and(|n| n == &name))
+            .is_some_and(|n| n == name))
     }
 }
