@@ -5,7 +5,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use header::Header;
 use log::{debug, info};
 use std::{
-    ffi::CString, fs::File, io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}
+    ffi::CString, fs::File, io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}
 };
 use thiserror::Error;
 use byteorder::WriteBytesExt;
@@ -195,6 +195,15 @@ impl Pak {
             unknown_post_header,
             path,
         })
+    }
+
+    /// Convenience method to save the PAK to a file.
+    pub fn save<P: ?Sized + AsRef<Path>>(&self, path: &P) -> Result<(), PakError> {
+        let mut output = BufWriter::new(File::create(path).unwrap());
+
+        self.encode(&mut output).unwrap();
+
+        Ok(())
     }
 
     /// Encode a PAK file into a byte stream.

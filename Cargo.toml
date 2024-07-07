@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "cz", "experimental",
+    "cz",
+    "experimental",
     "luca_pak",
-    "utils",
 ]
 
 [workspace.package]

@@ -1,13 +1,20 @@
 [package]
 name = "cz"
-version = "0.1.0"
 edition = "2021"
+version = "0.1.0"
 description="""
 A encoder/decoder for CZ# image files used in the LUCA System Engine.
 """
+license = "MIT"
+authors.workspace = true
 
 [features]
 png = ["dep:image"]
+binary = ["dep:clap"]
+
+[[bin]]
+name = "czutil"
+required-features = ["binary", "png"]
 
 [dependencies]
 byteorder = "1.5"
@@ -15,5 +22,11 @@ thiserror = "1.0"
 imagequant = "4.3"
 rgb = "0.8"
 
-# Only active on feature "png"
-image = { version = "0.25", default-features = false, features = ["png"], optional = true }
+# Only active on features "png" and "binary"
+image = { version = "0.25", optional = true }
+
+# Only active on feature "binary"
+clap = { version = "4.5.8", features = ["derive"], optional = true }
+
+[lints]
+workspace = true

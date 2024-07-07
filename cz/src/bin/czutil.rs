@@ -1,5 +1,5 @@
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
-use std::path::{Path, PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 
 #[derive(Parser)]
 #[command(name = "CZ Utils")]
@@ -90,8 +90,8 @@ fn main() {
                     .exit()
                 }
 
-                for entry in walkdir::WalkDir::new(input).max_depth(1) {
-                    let path = entry.unwrap().into_path();
+                for entry in fs::read_dir(input).unwrap() {
+                    let path = entry.unwrap().path();
                     if !path.is_file() {
                         continue;
                     }
@@ -182,11 +182,8 @@ fn main() {
                 }
 
                 // Replace all the files within the directory and print errors for them
-                for entry in walkdir::WalkDir::new(input)
-                    .max_depth(1)
-                    .same_file_system(true)
-                {
-                    let path = entry.unwrap().into_path();
+                for entry in fs::read_dir(input).unwrap() {
+                    let path = entry.unwrap().path();
                     if !path.is_file() {
                         continue;
                     }
