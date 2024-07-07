@@ -38,10 +38,8 @@ pub struct Pak {
     path: PathBuf,
     header: Header,
 
-    pub unknown_pre_data: Vec<u32>,
+    unknown_pre_data: Vec<u32>,
     unknown_post_header: Vec<u8>,
-
-    rebuild: bool, // TODO: Look into a better way to indicate this, or if it's needed at all
 
     entries: Vec<Entry>,
 }
@@ -59,7 +57,7 @@ impl Pak {
         Pak::decode(&mut file, path.as_ref().to_path_buf())
     }
 
-    /// Decode a PAK file from a byte stream
+    /// Decode a PAK file from a byte stream.
     pub fn decode<T: Seek + Read>(
         input: &mut T,
         path: PathBuf,
@@ -68,7 +66,7 @@ impl Pak {
         let mut input = BufReader::new(input);
 
         // Read in all the header bytes
-        info!("READING: header");
+        debug!("READING: header");
         let header = Header {
             data_offset: input.read_u32::<LE>()?,
             entry_count: input.read_u32::<LE>()?,
@@ -81,8 +79,8 @@ impl Pak {
             flags: PakFlags(input.read_u32::<LE>()?),
         };
         info!("{} entries detected", header.entry_count);
-        info!("Block size is {} bytes", header.block_size);
-        info!("Flag bits {:#032b}", header.flags().0);
+        debug!("Block size is {} bytes", header.block_size);
+        debug!("Flag bits {:#032b}", header.flags().0);
 
         let first_offset = header.data_offset() / header.block_size();
 
@@ -97,7 +95,7 @@ impl Pak {
 
             unknown_pre_data.push(unknown);
         }
-        info!("Pre-position bytes: {}", unknown_pre_data.len());
+        debug!("Pre-position bytes: {}", unknown_pre_data.len());
 
         if input.stream_position()? == header.data_offset() as u64 {
             log::error!("Header length exceeded first data block");
@@ -106,7 +104,7 @@ impl Pak {
 
         // Read all the offsets and lengths
         // TODO: I think a flag controls this
-        info!("READING: offsets");
+        debug!("READING: offsets");
         let mut offsets = Vec::new();
         for _ in 0..header.entry_count() {
             let offset = input.read_u32::<LE>().unwrap();
@@ -120,7 +118,7 @@ impl Pak {
         // Read all unknown_data1
         let mut unknown_data1 = None;
         if header.flags.has_unknown_data1() {
-            info!("READING: unknown_data1");
+            debug!("READING: unknown_data1");
             unknown_data1 = Some(Vec::new());
             let mut buf = [0u8; 12];
             for _ in 0..header.entry_count() {
@@ -133,7 +131,7 @@ impl Pak {
         // Read all the file names
         let mut file_names = None;
         if header.flags.has_names() {
-            info!("READING: file_names");
+            debug!("READING: file_names");
             let mut string_buf = Vec::new();
             file_names = Some(Vec::new());
             for _ in 0..header.entry_count() {
@@ -151,7 +149,7 @@ impl Pak {
         input.read_exact(&mut unknown_post_header)?;
 
         // Read all entry data
-        info!("Creating entry list");
+        debug!("Creating entry list");
         let mut entries: Vec<Entry> = Vec::new();
         for (i, offset_info) in offsets.iter().enumerate().take(header.entry_count() as usize) {
             debug!("Seeking to block {}", offset_info.offset);
@@ -178,6 +176,7 @@ impl Pak {
 
             // Build the entry from the data we now know
             let entry = Entry {
+                index: i,
                 offset: offset_info.offset,
                 length: offset_info.length,
                 unknown1,
@@ -187,7 +186,7 @@ impl Pak {
             };
             entries.push(entry);
         }
-        info!("Entry list contains {} entries", entries.len());
+        debug!("Entry list contains {} entries", entries.len());
 
         Ok(Pak {
             header,
@@ -195,10 +194,10 @@ impl Pak {
             entries,
             unknown_post_header,
             path,
-            rebuild: false,
         })
     }
 
+    /// Encode a PAK file into a byte stream.
     pub fn encode<T: Write + Seek>(
         &self,
         mut output: &mut T
@@ -256,30 +255,69 @@ impl Pak {
         Ok(())
     }
 
+    /// Replace the data of an entry with some other bytes.
+    ///
+    /// This function updates the offsets of all entries to fit within the
+    /// chunk size specified in the header.
     pub fn replace(
         &mut self,
         index: usize,
-        replacement_bytes: &[u8]
+        replacement_bytes: &[u8],
     ) -> Result<(), PakError> {
         let block_size = self.header().block_size();
 
-        let replaced_entry = if let Some(entry) = self.entries.get_mut(index) {
-            entry
+        let replaced_entry;
+        if let Some(entry) = self.entries.get_mut(index) {
+            replaced_entry = entry
         } else {
+            log::error!("Entry {} not found!", index);
             return Err(PakError::IndexError)
         };
+
+        if let Some(name) = replaced_entry.name() {
+            info!("Replacing entry {}: {}", index, name);
+        } else {
+            info!("Replacing entry {}: {}", index, replaced_entry.id());
+        }
 
         // Replace the entry data
         replaced_entry.data = replacement_bytes.to_vec();
         replaced_entry.length = replaced_entry.data.len() as u32;
 
-        let mut next_offset = replaced_entry.offset + replaced_entry.length.div_ceil(block_size);
+        // Get the offset of the next entry based on the current one
+        let mut next_offset =
+            replaced_entry.offset + replaced_entry.length.div_ceil(block_size);
 
+        // Update the position of all subsequent entries
+        let mut i = 0;
         for entry in self.entries.iter_mut().skip(index + 1) {
             entry.offset = next_offset;
 
             next_offset = entry.offset + entry.length.div_ceil(block_size);
+            i += 1;
         }
+
+        info!("Aligned {} subsequent entries", i);
+
+        Ok(())
+    }
+
+    /// Replace the data of an entry with some other bytes, indexing by name.
+    ///
+    /// Read more in [`Pak::replace()`]
+    pub fn replace_by_name(
+        &mut self,
+        name: String,
+        replacement_bytes: &[u8],
+    ) -> Result<(), PakError> {
+        let entry = self.get_entry_by_name(&name);
+        let index = if let Some(entry) = entry {
+            entry.index
+        } else {
+            return Err(PakError::IndexError)
+        };
+
+        self.replace(index, replacement_bytes)?;
 
         Ok(())
     }
@@ -293,21 +331,18 @@ impl Pak {
         &self.path
     }
 
-    /// Get an individual entry from the PAK by its index
-    pub fn get_entry(&self, index: u32) -> Option<&Entry> {
-        self.entries.get(index as usize)
-    }
-
     /// Get an individual entry from the PAK by its ID
-    pub fn get_entry_by_id(&self, id: u32) -> Option<&Entry> {
-        self.entries.get((id - self.header.id_start) as usize)
+    pub fn get_entry_by_id(&mut self, id: u32) -> Option<&mut Entry> {
+        self.entries
+            .get_mut((id - self.header.id_start) as usize)
     }
 
-    pub fn get_entry_by_name(&self, name: &str) -> Option<&Entry> {
+    pub fn get_entry_by_name(&mut self, name: &str) -> Option<&mut Entry> {
         self.entries
-            .iter()
-            .find(|e| e.name.as_ref()
-            .is_some_and(|n| n == &name))
+            .iter_mut()
+            .find(|e|
+                e.name.as_ref().is_some_and(|n| n == &name)
+            )
     }
 
     /// Get a list of all entries from the PAK

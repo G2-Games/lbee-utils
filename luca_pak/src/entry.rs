@@ -8,6 +8,8 @@ use std::{
 /// A single file entry in a PAK file
 #[derive(Debug, Clone)]
 pub struct Entry {
+    pub(super) index: usize,
+
     /// The location within the PAK file, this number is multiplied by the
     /// block size
     pub(super) offset: u32,
@@ -32,6 +34,10 @@ impl Entry {
     /// Get the name of the [`Entry`]
     pub fn name(&self) -> &Option<String> {
         &self.name
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
     }
 
     /// Save an [`Entry`] as its underlying data to a file
