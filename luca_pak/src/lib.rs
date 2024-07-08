@@ -207,7 +207,7 @@ impl Pak {
     }
 
     /// Encode a PAK file into a byte stream.
-    pub fn encode<T: Write + Seek>(
+    pub fn encode<T: Write>(
         &self,
         mut output: &mut T
     ) -> Result<(), PakError> {
