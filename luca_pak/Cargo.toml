@@ -1,7 +1,7 @@
 [package]
 name = "luca_pak"
 edition = "2021"
-version = "0.1.0"
+version = "0.1.1"
 description = """
 A crate for parsing and modifying PAK files from the LUCA System engine by
 Prototype Ltd.
