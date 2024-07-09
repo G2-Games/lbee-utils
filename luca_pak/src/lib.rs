@@ -1,5 +1,5 @@
-mod entry;
-mod header;
+pub mod entry;
+pub mod header;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use header::Header;

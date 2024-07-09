@@ -10,6 +10,10 @@ publish = false
 
 [dependencies]
 cz = { path = "../cz/", features = ["png"] }
+eframe = { version = "0.28.1", default-features = false, features = ["wayland", "x11", "accesskit", "default_fonts", "wgpu"] }
+egui_extras = "0.28.1"
+luca_pak = { path = "../luca_pak/" }
+rfd = "0.14.1"
 
 [lints]
 workspace = true

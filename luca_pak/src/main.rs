@@ -68,7 +68,9 @@ fn main() {
             }
 
             for entry in pak.entries() {
-                entry.save(&output).unwrap();
+                let mut outpath = output.clone();
+                outpath.push(entry.display_name());
+                entry.save(&outpath).unwrap();
             }
         },
         Commands::Replace { batch, name, id, replacement, output } => {
