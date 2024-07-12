@@ -18,11 +18,8 @@ thiserror = "1.0"
 imagequant = "4.3"
 rgb = "0.8"
 
-# Only active on features "png" and "binary"
+# Only active on PNG feature
 image = { version = "0.25", optional = true }
-
-# Only active on feature "binary"
-clap = { version = "4.5.8", features = ["derive"], optional = true }
 
 [lints]
 workspace = true
