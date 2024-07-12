@@ -263,9 +263,9 @@ impl Pak {
                 remainder = 0;
             }
 
-            println!("entry len {}", entry.data.len());
-            println!("remainder {}", remainder);
-            println!("block_offset {} - expected offset {}", block_offset, entry.offset);
+            //println!("entry len {}", entry.data.len());
+            //println!("remainder {}", remainder);
+            //println!("block_offset {} - expected offset {}", block_offset, entry.offset);
             output.write_all(&entry.data)?;
             output.write_all(&vec![0u8; remainder])?;
             block_offset += block_size as u32;
