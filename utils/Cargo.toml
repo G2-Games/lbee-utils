@@ -1,0 +1,21 @@
+[package]
+name = "utils"
+version = "0.2.0"
+edition = "2021"
+authors.workspace = true
+
+[[bin]]
+name = "czutil"
+
+[[bin]]
+name = "pakutil"
+
+[dependencies]
+cz = { path = "../cz/", features = ["png"] }
+luca_pak = { path = "../luca_pak/" }
+
+image = "0.25"
+clap = { version = "4.5.9", features = ["derive"] }
+
+[lints]
+workspace = true

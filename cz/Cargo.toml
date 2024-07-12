@@ -3,19 +3,14 @@ name = "cz"
 edition = "2021"
 version = "0.1.2"
 description="""
-A encoder/decoder for CZ# image files used in the LUCA System Engine.
+An encoder/decoder for CZ# image files used in the LUCA System engine by
+Prototype Ltd.
 """
 license = "MIT"
 authors.workspace = true
 
 [features]
 png = ["dep:image"]
-binary = ["dep:clap"]
-
-[[bin]]
-version = "0.1.2"
-name = "czutil"
-required-features = ["binary", "png"]
 
 [dependencies]
 byteorder = "1.5"

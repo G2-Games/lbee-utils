@@ -1,10 +1,11 @@
 [package]
-name = "experimental"
-description = """
-A package for experimentation, not for publishing
-"""
-version = "0.1.1"
+name = "pak_explorer"
 edition = "2021"
+version = "0.1.1"
+description = """
+A simple GUI for exploring and making modifications to LUCA System PAK files.
+"""
+license = "AGPL-3.0"
 authors.workspace = true
 publish = false
 

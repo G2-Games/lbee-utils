@@ -3,16 +3,11 @@ name = "luca_pak"
 edition = "2021"
 version = "0.1.2"
 description = """
-A crate for parsing and modifying PAK files from the LUCA System engine by
+An encoder/decoder for PAK archive files used in the LUCA System engine by
 Prototype Ltd.
 """
 license = "MIT"
 authors.workspace = true
-
-[[bin]]
-version = "0.1.2"
-name = "pakutil"
-path = "src/main.rs"
 
 [dependencies]
 byteorder = "1.5.0"
