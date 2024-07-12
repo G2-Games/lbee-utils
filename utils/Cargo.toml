@@ -14,7 +14,7 @@ name = "pakutil"
 cz = { path = "../cz/", features = ["png"] }
 luca_pak = { path = "../luca_pak/" }
 
-image = "0.25"
+image = { version = "0.25", default-features = false, features = ["png"] }
 clap = { version = "4.5.9", features = ["derive"] }
 
 [lints]

@@ -2,8 +2,10 @@ use std::{fs, path::PathBuf};
 use clap::{error::{Error, ErrorKind}, Parser, Subcommand};
 use luca_pak::Pak;
 
+/// Utility to maniuplate PAK archive files from the LUCA System game engine by
+/// Prototype Ltd.
 #[derive(Parser)]
-#[command(name = "CZ Utils")]
+#[command(name = "PAK Utility")]
 #[command(version, about, long_about = None)]
 struct Cli {
     #[arg(value_name = "PAK FILE")]

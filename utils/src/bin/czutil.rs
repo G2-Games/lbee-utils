@@ -1,8 +1,10 @@
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
 use std::{fs, path::{Path, PathBuf}};
 
+/// Utility to maniuplate CZ image files from the LUCA System game engine by
+/// Prototype Ltd.
 #[derive(Parser)]
-#[command(name = "CZ Utils")]
+#[command(name = "CZ Utility")]
 #[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
