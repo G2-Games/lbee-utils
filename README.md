@@ -6,6 +6,7 @@ Tested on the following games:
  - Little Busters! English Edition (2017)
  - LOOPERS (2023)
  - Harmonia Full HD Edition (2024)
+ - Kanon (2024)
 
 ## Acknowledgments
 The implementation for decompression of CZ1, CZ3, and CZ4 was originally
