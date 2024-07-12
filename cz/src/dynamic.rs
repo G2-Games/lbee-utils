@@ -54,7 +54,7 @@ impl DynamicCz {
             CzVersion::CZ2 => cz2::decode(input)?,
             CzVersion::CZ3 => cz3::decode(input, &header_common)?,
             CzVersion::CZ4 => cz4::decode(input, &header_common)?,
-            CzVersion::CZ5 => unimplemented!(),
+            CzVersion::CZ5 => unimplemented!("CZ5 files are not implemented! Please contact the application developers about this file."),
         };
 
         let image_size = header_common.width() as usize * header_common.height() as usize;
