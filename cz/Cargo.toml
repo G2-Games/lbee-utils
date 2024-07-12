@@ -1,7 +1,7 @@
 [package]
 name = "cz"
 edition = "2021"
-version = "0.1.0"
+version = "0.1.2"
 description="""
 A encoder/decoder for CZ# image files used in the LUCA System Engine.
 """
@@ -13,6 +13,7 @@ png = ["dep:image"]
 binary = ["dep:clap"]
 
 [[bin]]
+version = "0.1.2"
 name = "czutil"
 required-features = ["binary", "png"]
 

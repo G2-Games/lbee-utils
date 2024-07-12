@@ -10,6 +10,7 @@ license = "MIT"
 authors.workspace = true
 
 [[bin]]
+version = "0.1.2"
 name = "pakutil"
 path = "src/main.rs"
 
