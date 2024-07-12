@@ -1,9 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::path::PathBuf;
+use std::fs;
 
-use eframe::{egui::{self, text::{LayoutJob, TextWrapping}, ColorImage, Image, Rgba, TextBuffer, TextureFilter, TextureHandle, TextureOptions}, epaint::Fonts};
-use luca_pak::{entry::EntryType, header, Pak};
+use eframe::egui::{self, ColorImage, Image, TextureFilter, TextureHandle, TextureOptions};
+use luca_pak::{entry::EntryType, Pak};
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -47,15 +47,27 @@ impl eframe::App for PakExplorer {
             ctx.set_pixels_per_point(1.5);
             ui.heading("PAK File Explorer");
 
-            if ui.button("Open file…").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    let pak = Pak::open(&path).unwrap();
-                    self.open_file = Some(pak);
-                    self.selected_entry = None;
-                    self.image_texture = None;
-                    self.hex_string = None;
+            ui.horizontal(|ui| {
+                if ui.button("Open file…").clicked() {
+                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                        let pak = Pak::open(&path).unwrap();
+                        self.open_file = Some(pak);
+                        self.selected_entry = None;
+                        self.image_texture = None;
+                        self.hex_string = None;
+                    }
                 }
-            }
+                if let Some(pak) = &self.open_file {
+                    if ui.button("Save PAK…").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                                .set_file_name(pak.path().file_name().unwrap().to_string_lossy())
+                                .save_file()
+                        {
+                            pak.save(&path).unwrap();
+                        }
+                    }
+                }
+            });
 
             ui.separator();
 
@@ -92,14 +104,25 @@ impl eframe::App for PakExplorer {
             }
 
             if let Some(entry) = &self.selected_entry {
-                if ui.button("Save entry…").clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
-                        .set_file_name(entry.display_name())
-                        .save_file()
-                    {
-                        entry.save(&path).unwrap();
+                ui.horizontal(|ui| {
+                    if ui.button("Save entry…").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .set_file_name(entry.display_name())
+                            .save_file()
+                        {
+                            entry.save(&path).unwrap();
+                        }
                     }
-                }
+
+                    if let Some(pak) = &mut self.open_file.as_mut() {
+                        if ui.button("Replace entry…").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                let file_bytes = fs::read(path).unwrap();
+                                pak.replace(entry.index(), &file_bytes).unwrap();
+                            }
+                        }
+                    }
+                });
                 match entry.file_type() {
                     EntryType::CZ0 | EntryType::CZ1
                         | EntryType::CZ2 | EntryType::CZ3
@@ -147,7 +170,7 @@ impl eframe::App for PakExplorer {
                         );
                     },
                 }
-            } else {
+            } else if self.open_file.is_some() {
                 ui.centered_and_justified(|ui|
                     ui.label("Select an Entry")
                 );

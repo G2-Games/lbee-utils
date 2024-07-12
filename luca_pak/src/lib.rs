@@ -213,7 +213,6 @@ impl Pak {
         &self,
         mut output: &mut T
     ) -> Result<(), PakError> {
-        let mut block_offset = 0;
         self.header.write_into(&mut output)?;
 
         // Write unknown data
@@ -254,21 +253,22 @@ impl Pak {
 
         output.write_all(&self.unknown_post_header)?;
 
-        block_offset += self.header().data_offset / self.header().block_size;
+        //let mut block_offset = self.header().data_offset / self.header().block_size;
 
         for entry in self.entries() {
-            let block_size = entry.data.len().div_ceil(self.header().block_size as usize);
+            //let block_size = entry.data.len().div_ceil(self.header().block_size as usize);
             let mut remainder = 2048 - entry.data.len().rem_euclid(self.header().block_size as usize);
             if remainder == 2048 {
                 remainder = 0;
             }
+            output.write_all(&entry.data)?;
+            output.write_all(&vec![0u8; remainder])?;
 
             //println!("entry len {}", entry.data.len());
             //println!("remainder {}", remainder);
             //println!("block_offset {} - expected offset {}", block_offset, entry.offset);
-            output.write_all(&entry.data)?;
-            output.write_all(&vec![0u8; remainder])?;
-            block_offset += block_size as u32;
+
+            //block_offset += block_size as u32;
         }
 
         Ok(())

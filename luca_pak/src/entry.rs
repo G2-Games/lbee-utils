@@ -1,5 +1,5 @@
 use std::{
-    error::Error, fmt, fs::File, io::{BufWriter, Write}, path::Path
+    error::Error, fs::File, io::{BufWriter, Write}, path::Path
 };
 
 /// A single file entry in a PAK file
