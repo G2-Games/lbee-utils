@@ -14,7 +14,8 @@ pub struct Header {
     pub(super) id_start: u32,
     pub(super) block_size: u32,
 
-    pub(super) unknown1: u32,
+    /// The offset of the subdirectory name within the PAK
+    pub(super) subdir_offset: u32,
     pub(super) unknown2: u32,
     pub(super) unknown3: u32,
     pub(super) unknown4: u32,
@@ -28,7 +29,7 @@ impl Header {
         output.write_u32::<LE>(self.entry_count)?;
         output.write_u32::<LE>(self.id_start)?;
         output.write_u32::<LE>(self.block_size)?;
-        output.write_u32::<LE>(self.unknown1)?;
+        output.write_u32::<LE>(self.subdir_offset)?;
         output.write_u32::<LE>(self.unknown2)?;
         output.write_u32::<LE>(self.unknown3)?;
         output.write_u32::<LE>(self.unknown4)?;

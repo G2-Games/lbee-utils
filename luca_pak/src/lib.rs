@@ -33,6 +33,8 @@ pub enum PakError {
 /// A full PAK file with a header and its contents
 #[derive(Debug, Clone)]
 pub struct Pak {
+    subdirectory: Option<String>,
+
     /// The path of the PAK file, can serve as an identifier or name as the
     /// header has no name for the file.
     path: PathBuf,
@@ -72,7 +74,7 @@ impl Pak {
             entry_count: input.read_u32::<LE>()?,
             id_start: input.read_u32::<LE>()?,
             block_size: input.read_u32::<LE>()?,
-            unknown1: input.read_u32::<LE>()?,
+            subdir_offset: input.read_u32::<LE>()?,
             unknown2: input.read_u32::<LE>()?,
             unknown3: input.read_u32::<LE>()?,
             unknown4: input.read_u32::<LE>()?,
@@ -130,16 +132,15 @@ impl Pak {
 
         // Read all the file names
         let mut file_names = None;
+        let mut subdirectory = None;
         if header.flags.has_names() {
             debug!("READING: file_names");
-            let mut string_buf = Vec::new();
+            if header.subdir_offset != 0 {
+                subdirectory = Some(read_cstring(&mut input)?);
+            }
             file_names = Some(Vec::new());
             for _ in 0..header.entry_count() {
-                string_buf.clear();
-                input.read_until(0x00, &mut string_buf)?;
-                string_buf.pop();
-
-                let strbuf = String::from_utf8_lossy(&string_buf).to_string();
+                let strbuf = read_cstring(&mut input)?;
                 file_names.as_mut().unwrap().push(strbuf.clone());
             }
         }
@@ -189,6 +190,7 @@ impl Pak {
         debug!("Entry list contains {} entries", entries.len());
 
         Ok(Pak {
+            subdirectory,
             header,
             unknown_pre_data,
             entries,
@@ -237,6 +239,11 @@ impl Pak {
 
         // Write names if the flags indicate it should have them
         if self.header.flags().has_names() {
+            if let Some(subdir) = &self.subdirectory {
+                output.write_all(
+                    CString::new(subdir.as_bytes()).unwrap().to_bytes_with_nul()
+                )?;
+            }
             for entry in self.entries() {
                 let name = entry.name.as_ref().unwrap();
                 output.write_all(
@@ -251,11 +258,14 @@ impl Pak {
 
         for entry in self.entries() {
             let block_size = entry.data.len().div_ceil(self.header().block_size as usize);
-            let remainder = 2048 - entry.data.len().rem_euclid(self.header().block_size as usize);
+            let mut remainder = 2048 - entry.data.len().rem_euclid(self.header().block_size as usize);
+            if remainder == 2048 {
+                remainder = 0;
+            }
 
-            debug!("entry {:?} len {}", entry.name(), entry.data.len());
-            debug!("remainder {}", remainder);
-            debug!("block_offset {} - expected offset {}", block_offset, entry.offset);
+            println!("entry len {}", entry.data.len());
+            println!("remainder {}", remainder);
+            println!("block_offset {} - expected offset {}", block_offset, entry.offset);
             output.write_all(&entry.data)?;
             output.write_all(&vec![0u8; remainder])?;
             block_offset += block_size as u32;
@@ -383,4 +393,12 @@ impl Pak {
             .any(|e| e.name.as_ref()
             .is_some_and(|n| n == name))
     }
+}
+
+fn read_cstring<T: Seek + Read + BufRead>(input: &mut T) -> Result<String, io::Error> {
+    let mut string_buf = vec![];
+    input.read_until(0x00, &mut string_buf)?;
+    string_buf.pop();
+
+    Ok(String::from_utf8_lossy(&string_buf).to_string())
 }

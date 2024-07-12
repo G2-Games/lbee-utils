@@ -33,6 +33,10 @@ impl Entry {
         &self.name
     }
 
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
     pub fn id(&self) -> u32 {
         self.id
     }
