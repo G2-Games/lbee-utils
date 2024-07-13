@@ -5,7 +5,7 @@ version = "0.1.1"
 description = """
 A simple GUI for exploring and making modifications to LUCA System PAK files.
 """
-license = "AGPL-3.0"
+license = "GPL-3.0-or-later"
 authors.workspace = true
 publish = false
 
