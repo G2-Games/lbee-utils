@@ -164,7 +164,6 @@ pub fn decompress2<T: Seek + ReadBytesExt + Read>(
 
 fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
     let mut data = input_data.to_vec();
-    data[0] = 0;
     let mut dictionary = HashMap::new();
     for i in 0..256 {
         dictionary.insert(i as u64, vec![i as u8]);
