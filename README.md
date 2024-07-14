@@ -10,11 +10,18 @@ Tested on the following games:
  - planetarian \~Snow Globe~ (Nintendo Switch) (2024)
 
 ## Acknowledgments
-The implementation for decompression of CZ1, CZ3, and CZ4 was originally
-derived from [GARbro](https://github.com/morkt/GARbro/). The implementation of
-compresssion and decompression of CZ1, CZ2, CZ3, and CZ4 was derived from
-[LuckSystem](https://github.com/wetor/LuckSystem). This project would not have
-been possible without their amazing work.
+The implementation of compresssion and decompression of CZ1, CZ2, CZ3, and CZ4 
+was derived from [LuckSystem](https://github.com/wetor/LuckSystem). This project 
+would not have been possible without their amazing work. The implementation 
+for decompression of CZ1, CZ3, and CZ4 was originally derived from 
+[GARbro](https://github.com/morkt/GARbro/), but is no longer.
+
+## Licensing
+The libraries are licensed under the 
+[MIT License](https://choosealicense.com/licenses/mit/) which allows for easy
+integration into existing projects. The applications and programs are licensed
+under the [GPLv3](https://choosealicense.com/licenses/gpl-3.0/). Please read
+the licences before deciding how to use this project in your own, thank you!
 
 ## Features
 These decoders and encoders are structured as libraries first and tools second.
