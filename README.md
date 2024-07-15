@@ -11,10 +11,12 @@ Tested on the following games:
 
 ## Acknowledgments
 The implementation of compresssion and decompression of CZ1, CZ2, CZ3, and CZ4 
-was derived from [LuckSystem](https://github.com/wetor/LuckSystem). This project 
-would not have been possible without their amazing work. The implementation 
-for decompression of CZ1, CZ3, and CZ4 was originally derived from 
-[GARbro](https://github.com/morkt/GARbro/), but is no longer.
+was derived from [LuckSystem](https://github.com/wetor/LuckSystem). The 
+implementation for decompression of CZ1, CZ3, and CZ4 was originally derived from 
+[GARbro](https://github.com/morkt/GARbro/), but no longer is. 
+
+This project would not have been possible without the work of these previous 
+projects!
 
 ## Licensing
 The libraries are licensed under the 
