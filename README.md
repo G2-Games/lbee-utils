@@ -41,7 +41,7 @@ metadata can't be changed as of yet, however.
 
 ## Programs
 
-### [lbee-utils](https://github.com/G2-Games/lbee-utils/releases/tag/utils-0.1.0)
+### [lbee-utils](https://github.com/G2-Games/lbee-utils/releases/tag/utils-0.1.1)
 Small command line tools for modifying CZ images and PAK archives. Usage for each
 is as follows:
 
