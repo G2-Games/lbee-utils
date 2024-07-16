@@ -1,7 +1,7 @@
 [package]
 name = "cz"
 edition = "2021"
-version = "0.1.2"
+version = "0.1.3"
 description="""
 An encoder/decoder for CZ# image files used in the LUCA System engine by
 Prototype Ltd.

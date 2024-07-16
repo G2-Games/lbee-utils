@@ -312,9 +312,7 @@ fn compress_lzw(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u16>, Ve
     (count, compressed, last_element)
 }
 
-pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
-    let size = if size == 0 { 0x87BDF } else { size };
-
+pub fn compress2(data: &[u8]) -> (Vec<u8>, CompressionInfo) {
     let mut part_data;
 
     let mut offset = 0;
@@ -328,7 +326,7 @@ pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
     };
 
     loop {
-        (count, part_data, last) = compress_lzw2(&data[offset..], size, last);
+        (count, part_data, last) = compress_lzw2(&data[offset..], last);
         if count == 0 {
             break;
         }
@@ -346,20 +344,13 @@ pub fn compress2(data: &[u8], size: usize) -> (Vec<u8>, CompressionInfo) {
 
     if output_info.chunk_count == 0 {
         panic!("No chunks compressed!")
-    } else if output_info.chunk_count != 1 {
-        output_info.chunks[0].size_raw -= 1;
-        output_info.chunks[output_info.chunk_count - 1].size_raw += 1;
     }
 
     output_info.total_size_compressed = output_buf.len();
     (output_buf, output_info)
 }
 
-fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
-    let mut data = data.to_vec();
-    if !data.is_empty() {
-        data[0] = 0;
-    }
+fn compress_lzw2(data: &[u8], last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
     let mut count = 0;
     let mut dictionary = HashMap::new();
     for i in 0..=255 {
@@ -372,7 +363,7 @@ fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Ve
         element = last
     }
 
-    let mut bit_io = BitIo::new(vec![0u8; size + 2]);
+    let mut bit_io = BitIo::new(vec![0u8; 0xF0000]);
     let write_bit = |bit_io: &mut BitIo, code: u64| {
         if code > 0x7FFF {
             bit_io.write_bit(1, 1);
@@ -398,9 +389,9 @@ fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Ve
 
         count += 1;
 
-        if size > 0 && bit_io.byte_size() >= size {
+        if dictionary_count >= 0x3FFFE {
             count -= 1;
-            break;
+            break
         }
     }
 
@@ -412,7 +403,7 @@ fn compress_lzw2(data: &[u8], size: usize, last: Vec<u8>) -> (usize, Vec<u8>, Ve
             }
         }
         return (count, bit_io.bytes(), Vec::new());
-    } else if bit_io.byte_size() < size {
+    } else if bit_io.byte_size() < 0x87BDF {
         if !last_element.is_empty() {
             write_bit(&mut bit_io, *dictionary.get(&last_element).unwrap());
         }
