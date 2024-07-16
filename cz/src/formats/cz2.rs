@@ -6,7 +6,7 @@ use crate::compression::{compress2, decompress2, get_chunk_info};
 
 pub fn decode<T: Seek + ReadBytesExt + Read>(bytes: &mut T) -> Result<Vec<u8>, CzError> {
     // Get information about the compressed chunks
-    let block_info = get_chunk_info(bytes).unwrap();
+    let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
     // Get the bitmap

@@ -23,13 +23,9 @@ pub fn encode<T: WriteBytesExt + Write>(
     bitmap: &[u8],
     header: &CommonHeader,
 ) -> Result<(), CzError> {
-    let timer = std::time::Instant::now();
     let bitmap = diff_line(header, bitmap);
-    println!("diff_line took {:?}", timer.elapsed());
 
-    let timer = std::time::Instant::now();
     let (compressed_data, compressed_info) = compress(&bitmap, 0xFEFD);
-    println!("Compression took {:?}", timer.elapsed());
 
     compressed_info.write_into(output)?;
 
