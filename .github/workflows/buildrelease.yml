@@ -16,70 +16,71 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         - name: '📄 Checkout'
-            uses: actions/checkout@v3
+          uses: actions/checkout@v3
         - name: 'Set up Rust environment'
-            uses: dtolnay/rust-toolchain@master
-            with:
-                toolchain: stable
-                targets: x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu
+          uses: dtolnay/rust-toolchain@master
+          with:
+              toolchain: stable
+              targets: x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu
         - name: 'Cache Rust dependencies'
-            uses: actions/cache@v4
-            with:
-                path: target
-                key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
-                restore-keys: |
-                    ${{ runner.OS }}-build-
+          uses: actions/cache@v4
+          with:
+              path: target
+              key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
+              restore-keys: |
+                  ${{ runner.OS }}-build-
         - name: '📦 Package Windows x86_64'
-            run: |
-                cd ${{github.workspace}}
-                cargo build --profile production --target x86_64-pc-windows-gnu $BINARIES
-                zip lbee-utils_Windows-x86_64.zip target/x86_64-pc-windows-gnu/production/czutil.exe target/x86_64-pc-windows-gnu/production/pakutil.exe
-                gh release upload ${{github.event.release.tag_name}} lbee-utils_Windows-x86_64.zip
-            env:
-                GITHUB_TOKEN: ${{ github.TOKEN }}
-            shell: bash
+          run: |
+              cd ${{github.workspace}}
+              sudo apt-get install -y gcc-mingw-w64
+              cargo build --profile production --target x86_64-pc-windows-gnu $BINARIES
+              zip -j lbee-utils_Windows-x86_64.zip target/x86_64-pc-windows-gnu/production/czutil.exe target/x86_64-pc-windows-gnu/production/pakutil.exe
+              gh release upload ${{ github.ref_name }} lbee-utils_Windows-x86_64.zip
+          env:
+              GITHUB_TOKEN: ${{ github.TOKEN }}
+          shell: bash
         - name: '📦 Package Linux x86_64'
-            run: |
-                cd ${{github.workspace}}
-                cargo build --profile production --target x86_64-unknown-linux-gnu $BINARIES
-                zip lbee-utils_Linux-x86_64.zip target/x86_64-unknown-linux-gnu/production/czutil.exe target/x86_64-unknown-linux-gnu/production/pakutil.exe
-                gh release upload ${{github.event.release.tag_name}} lbee-utils_Linux-x86_64.zip
-            env:
-                GITHUB_TOKEN: ${{ github.TOKEN }}
-            shell: bash
+          run: |
+              cd ${{github.workspace}}
+              cargo build --profile production --target x86_64-unknown-linux-gnu $BINARIES
+              zip -j lbee-utils_Linux-x86_64.zip target/x86_64-unknown-linux-gnu/production/czutil target/x86_64-unknown-linux-gnu/production/pakutil
+              gh release upload ${{ github.ref_name }} lbee-utils_Linux-x86_64.zip
+          env:
+              GITHUB_TOKEN: ${{ github.TOKEN }}
+          shell: bash
     build-mac:
         name: Build binaries for MacOS
         runs-on: macos-14
         steps:
         - name: '📄 Checkout'
-            uses: actions/checkout@v3
+          uses: actions/checkout@v3
         - name: 'Set up Rust environment'
-            uses: dtolnay/rust-toolchain@master
-            with:
-                toolchain: stable
-                targets: x86_64-apple-darwin, aarch64-apple-darwin
+          uses: dtolnay/rust-toolchain@master
+          with:
+              toolchain: stable
+              targets: x86_64-apple-darwin, aarch64-apple-darwin
         - name: 'Cache Rust dependencies'
-            uses: actions/cache@v4
-            with:
-                path: target
-                key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
-                restore-keys: |
-                    ${{ runner.OS }}-build-
+          uses: actions/cache@v4
+          with:
+              path: target
+              key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
+              restore-keys: |
+                  ${{ runner.OS }}-build-
         - name: '📦 Package MacOS x86_64'
-            run: |
-                cd ${{github.workspace}}
-                cargo build --profile production --target x86_64-apple-darwin $BINARIES
-                zip lbee-utils_Mac-x86_64.zip target/x86_64-apple-darwin/production/czutil.exe target/x86_64-apple-darwin/production/pakutil.exe
-                gh release upload ${{github.event.release.tag_name}} lbee-utils_Mac-x86_64.zip
-            env:
-                GITHUB_TOKEN: ${{ github.TOKEN }}
-            shell: bash
+          run: |
+              cd ${{github.workspace}}
+              cargo build --profile production --target x86_64-apple-darwin $BINARIES
+              zip -j lbee-utils_Mac-x86_64.zip target/x86_64-apple-darwin/production/czutil target/x86_64-apple-darwin/production/pakutil
+              gh release upload ${{ github.ref_name }} lbee-utils_Mac-x86_64.zip
+          env:
+              GITHUB_TOKEN: ${{ github.TOKEN }}
+          shell: bash
         - name: '📦 Package MacOS Arm'
-            run: |
-                cd ${{github.workspace}}
-                cargo build --profile production --target aarch64-apple-darwin $BINARIES
-                zip lbee-utils_Mac-Arm.zip target/aarch64-apple-darwin/production/czutil.exe target/aarch64-apple-darwin/production/pakutil.exe
-                gh release upload ${{github.event.release.tag_name}} lbee-utils_Mac-Arm.zip
-            env:
-                GITHUB_TOKEN: ${{ github.TOKEN }}
-            shell: bash
+          run: |
+              cd ${{github.workspace}}
+              cargo build --profile production --target aarch64-apple-darwin $BINARIES
+              zip -j lbee-utils_Mac-Arm.zip target/aarch64-apple-darwin/production/czutil target/aarch64-apple-darwin/production/pakutil
+              gh release upload ${{ github.ref_name }} lbee-utils_Mac-Arm.zip
+          env:
+              GITHUB_TOKEN: ${{ github.TOKEN }}
+          shell: bash
