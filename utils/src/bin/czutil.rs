@@ -219,14 +219,6 @@ fn main() {
                     Error::raw(ErrorKind::ValueValidation, "Replacement must be a file\n").exit()
                 }
 
-                if !output.is_file() {
-                    Error::raw(
-                        ErrorKind::ValueValidation,
-                        "Replacement output must be a file\n",
-                    )
-                    .exit()
-                }
-
                 // Replace the input file with the new image
                 replace_cz(&input, &output, &replacement, version, depth).unwrap();
             }
