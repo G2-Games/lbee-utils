@@ -15,15 +15,13 @@ jobs:
         name: Build binaries for Windows and Linux
         runs-on: ubuntu-latest
         steps:
-
-        - uses: actions/checkout@v3
-
+        - name: '📄 Checkout'
+            uses: actions/checkout@v3
         - name: 'Set up Rust environment'
             uses: dtolnay/rust-toolchain@master
             with:
                 toolchain: stable
                 targets: x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu
-
         - name: 'Cache Rust dependencies'
             uses: actions/cache@v4
             with:
@@ -31,7 +29,6 @@ jobs:
                 key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
                 restore-keys: |
                     ${{ runner.OS }}-build-
-
         - name: '📦 Package Windows x86_64'
             run: |
                 cd ${{github.workspace}}
@@ -41,7 +38,6 @@ jobs:
             env:
                 GITHUB_TOKEN: ${{ github.TOKEN }}
             shell: bash
-
         - name: '📦 Package Linux x86_64'
             run: |
                 cd ${{github.workspace}}
@@ -51,20 +47,17 @@ jobs:
             env:
                 GITHUB_TOKEN: ${{ github.TOKEN }}
             shell: bash
-
     build-mac:
         name: Build binaries for MacOS
         runs-on: macos-14
         steps:
-
-        - uses: actions/checkout@v3
-
+        - name: '📄 Checkout'
+            uses: actions/checkout@v3
         - name: 'Set up Rust environment'
             uses: dtolnay/rust-toolchain@master
             with:
                 toolchain: stable
                 targets: x86_64-apple-darwin, aarch64-apple-darwin
-
         - name: 'Cache Rust dependencies'
             uses: actions/cache@v4
             with:
@@ -72,7 +65,6 @@ jobs:
                 key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
                 restore-keys: |
                     ${{ runner.OS }}-build-
-
         - name: '📦 Package MacOS x86_64'
             run: |
                 cd ${{github.workspace}}
@@ -82,7 +74,6 @@ jobs:
             env:
                 GITHUB_TOKEN: ${{ github.TOKEN }}
             shell: bash
-
         - name: '📦 Package MacOS Arm'
             run: |
                 cd ${{github.workspace}}
