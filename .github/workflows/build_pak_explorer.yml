@@ -1,4 +1,4 @@
-name: Publish utilities on release
+name: Publish PAK Explorer on release
 
 on:
   push:
