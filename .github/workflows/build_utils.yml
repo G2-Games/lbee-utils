@@ -17,28 +17,46 @@ jobs:
         steps:
         - name: '📄 Checkout'
           uses: actions/checkout@v4
-        - name: 'Set up Rust environment'
+
+        - name: '⚙️ Set up Rust environment'
           uses: dtolnay/rust-toolchain@master
           with:
               toolchain: stable
-              targets: x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu
-        - name: 'Cache Rust dependencies'
+              targets: x86_64-pc-windows-gnu, i686-pc-windows-gnu, x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
+
+        - name: '🔽 Cache Rust dependencies'
           uses: actions/cache@v4
           with:
               path: target
               key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
               restore-keys: |
                   ${{ runner.OS }}-build-
+
+        - name: '🔄 Set up additional requirements'
+          run: |
+            sudo apt-get install -y gcc-mingw-w64
+            pip install cargo-zigbuild
+
         - name: '📦 Package Windows x86_64'
           run: |
               cd ${{github.workspace}}
-              sudo apt-get install -y gcc-mingw-w64
               cargo build --profile production --target x86_64-pc-windows-gnu $BINARIES
               zip -j lbee-utils_Windows-x86_64.zip target/x86_64-pc-windows-gnu/production/czutil.exe target/x86_64-pc-windows-gnu/production/pakutil.exe
               gh release upload ${{ github.ref_name }} lbee-utils_Windows-x86_64.zip
           env:
               GITHUB_TOKEN: ${{ github.TOKEN }}
           shell: bash
+
+        - name: '📦 Package Windows i686'
+          run: |
+              cd ${{github.workspace}}
+              cargo build --profile production --target i686-pc-windows-gnu $BINARIES
+              zip -j lbee-utils_Windows-x86.zip target/i686-pc-windows-gnu/production/czutil.exe target/i686-pc-windows-gnu/production/pakutil.exe
+              gh release upload ${{ github.ref_name }} lbee-utils_Windows-x86.zip
+          env:
+              GITHUB_TOKEN: ${{ github.TOKEN }}
+          shell: bash
+
         - name: '📦 Package Linux x86_64'
           run: |
               cd ${{github.workspace}}
@@ -48,39 +66,51 @@ jobs:
           env:
               GITHUB_TOKEN: ${{ github.TOKEN }}
           shell: bash
+
+        - name: '📦 Package Linux aarch64'
+          run: |
+              cd ${{github.workspace}}
+              cargo zigbuild --profile production --target aarch64-unknown-linux-gnu $BINARIES
+              zip -j lbee-utils_Linux-Arm64.zip target/aarch64-unknown-linux-gnu/production/czutil target/aarch64-unknown-linux-gnu/production/pakutil
+              gh release upload ${{ github.ref_name }} lbee-utils_Linux-Arm64.zip
+          env:
+              GITHUB_TOKEN: ${{ github.TOKEN }}
+          shell: bash
+
     build-mac:
         name: Build binaries for MacOS
         runs-on: macos-14
         steps:
         - name: '📄 Checkout'
           uses: actions/checkout@v4
-        - name: 'Set up Rust environment'
+
+        - name: '⚙️ Set up Rust environment'
           uses: dtolnay/rust-toolchain@master
           with:
               toolchain: stable
               targets: x86_64-apple-darwin, aarch64-apple-darwin
-        - name: 'Cache Rust dependencies'
+
+        - name: '🔽 Cache Rust dependencies'
           uses: actions/cache@v4
           with:
               path: target
               key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
               restore-keys: |
                   ${{ runner.OS }}-build-
-        - name: '📦 Package MacOS x86_64'
+
+        - name: '🔄 Set up additional requirements'
+          run: |
+            brew install zig
+            cargo install --locked cargo-zigbuild
+
+        - name: '📦 Package MacOS Universal2'
           run: |
               cd ${{github.workspace}}
-              cargo build --profile production --target x86_64-apple-darwin $BINARIES
-              zip -j lbee-utils_Mac-x86_64.zip target/x86_64-apple-darwin/production/czutil target/x86_64-apple-darwin/production/pakutil
-              gh release upload ${{ github.ref_name }} lbee-utils_Mac-x86_64.zip
-          env:
-              GITHUB_TOKEN: ${{ github.TOKEN }}
-          shell: bash
-        - name: '📦 Package MacOS Arm'
-          run: |
-              cd ${{github.workspace}}
-              cargo build --profile production --target aarch64-apple-darwin $BINARIES
-              zip -j lbee-utils_Mac-Arm.zip target/aarch64-apple-darwin/production/czutil target/aarch64-apple-darwin/production/pakutil
-              gh release upload ${{ github.ref_name }} lbee-utils_Mac-Arm.zip
+              cargo zigbuild --manifest-path "cz/Cargo.toml" --profile production --target universal2-apple-darwin
+              cargo zigbuild --manifest-path "luca_pak/Cargo.toml" --profile production --target universal2-apple-darwin
+              cargo zigbuild --manifest-path "utils/Cargo.toml" --profile production --target universal2-apple-darwin $BINARIES
+              zip -j lbee-utils_Mac-Universal.zip target/universal2-apple-darwin/production/czutil target/universal2-apple-darwin/production/pakutil
+              gh release upload ${{ github.ref_name }} lbee-utils_Mac-Universal.zip
           env:
               GITHUB_TOKEN: ${{ github.TOKEN }}
           shell: bash
