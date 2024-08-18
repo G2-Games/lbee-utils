@@ -106,8 +106,6 @@ jobs:
         - name: '📦 Package MacOS Universal2'
           run: |
               cd ${{github.workspace}}
-              cargo zigbuild --manifest-path "cz/Cargo.toml" --profile production --target universal2-apple-darwin
-              cargo zigbuild --manifest-path "luca_pak/Cargo.toml" --profile production --target universal2-apple-darwin
               cargo zigbuild --manifest-path "utils/Cargo.toml" --profile production --target universal2-apple-darwin $BINARIES
               zip -j lbee-utils_Mac-Universal.zip target/universal2-apple-darwin/production/czutil target/universal2-apple-darwin/production/pakutil
               gh release upload ${{ github.ref_name }} lbee-utils_Mac-Universal.zip
