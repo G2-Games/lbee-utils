@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     collections::HashMap,
     io::{Read, Seek, Write},
@@ -41,11 +41,11 @@ impl CompressionInfo {
         &self,
         output: &mut T,
     ) -> Result<(), std::io::Error> {
-        output.write_u32::<LittleEndian>(self.chunk_count as u32)?;
+        output.write_u32::<LE>(self.chunk_count as u32)?;
 
         for chunk in &self.chunks {
-            output.write_u32::<LittleEndian>(chunk.size_compressed as u32)?;
-            output.write_u32::<LittleEndian>(chunk.size_raw as u32)?;
+            output.write_u32::<LE>(chunk.size_compressed as u32)?;
+            output.write_u32::<LE>(chunk.size_raw as u32)?;
         }
 
         Ok(())
@@ -59,7 +59,7 @@ impl CompressionInfo {
 pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
     bytes: &mut T,
 ) -> Result<CompressionInfo, CzError> {
-    let parts_count = bytes.read_u32::<LittleEndian>()?;
+    let parts_count = bytes.read_u32::<LE>()?;
 
     let mut part_sizes = vec![];
     let mut total_size = 0;
@@ -67,10 +67,10 @@ pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
 
     // Loop over the compressed bytes
     for _ in 0..parts_count {
-        let compressed_size = bytes.read_u32::<LittleEndian>()?;
+        let compressed_size = bytes.read_u32::<LE>()?;
         total_size = i32::wrapping_add(total_size, compressed_size as i32);
 
-        let raw_size = bytes.read_u32::<LittleEndian>()?;
+        let raw_size = bytes.read_u32::<LE>()?;
         total_size_raw = u32::wrapping_add(total_size_raw, raw_size);
 
         part_sizes.push(ChunkInfo {
@@ -99,7 +99,7 @@ pub fn decompress<T: Seek + ReadBytesExt + Read>(
         let mut buffer = vec![0u16; block.size_compressed];
 
         for word in buffer.iter_mut() {
-            *word = input.read_u16::<LittleEndian>().unwrap();
+            *word = input.read_u16::<LE>().unwrap();
         }
 
         let raw_buf = decompress_lzw(&buffer, block.size_raw);
