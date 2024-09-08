@@ -1,14 +1,13 @@
 pub mod entry;
 pub mod header;
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use header::Header;
 use log::{debug, info};
 use std::{
     ffi::CString, fs::File, io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}
 };
 use thiserror::Error;
-use byteorder::WriteBytesExt;
 
 type LE = LittleEndian;
 
@@ -20,8 +19,11 @@ pub enum PakError {
     #[error("Could not read/write file")]
     IoError(#[from] io::Error),
 
-    #[error("Expected {} files, got {} in {}", 0, 1, 2)]
-    FileCountMismatch(usize, usize, &'static str),
+    #[error("Expected {0} files, got {1} in {2}")]
+    EntryCountMismatch(usize, usize, &'static str),
+
+    #[error("Number of entries in header ({0}) exceeds limit of {1}")]
+    EntryLimit(u32, usize),
 
     #[error("Malformed header information")]
     HeaderError,
@@ -35,9 +37,11 @@ pub enum PakError {
 pub struct Pak {
     subdirectory: Option<String>,
 
-    /// The path of the PAK file, can serve as an identifier or name as the
+    /// The path to the PAK file, can serve as an identifier or name as the
     /// header has no name for the file.
     path: PathBuf,
+
+    /// Header information
     header: Header,
 
     unknown_pre_data: Vec<u32>,
@@ -46,9 +50,23 @@ pub struct Pak {
     entries: Vec<Entry>,
 }
 
-struct FileLocation {
+struct EntryLocation {
     offset: u32,
     length: u32,
+}
+
+pub struct PakLimits {
+    pub entry_limit: usize,
+    pub size_limit: usize,
+}
+
+impl Default for PakLimits {
+    fn default() -> Self {
+        Self {
+            entry_limit: 10_000, // 10,000 entries
+            size_limit: 10_000_000_000, // 10 gb
+        }
+    }
 }
 
 impl Pak {
@@ -56,13 +74,18 @@ impl Pak {
     pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<Self, PakError> {
         let mut file = File::open(path)?;
 
-        Pak::decode(&mut file, path.as_ref().to_path_buf())
+        Pak::decode(
+            &mut file,
+            path.as_ref().to_path_buf(),
+            PakLimits::default()
+        )
     }
 
     /// Decode a PAK file from a byte stream.
     pub fn decode<T: Seek + Read>(
         input: &mut T,
         path: PathBuf,
+        limits: PakLimits,
     ) -> Result<Self, PakError> {
         info!("Reading pak from {:?}", path);
         let mut input = BufReader::new(input);
@@ -80,6 +103,10 @@ impl Pak {
             unknown4: input.read_u32::<LE>()?,
             flags: PakFlags(input.read_u32::<LE>()?),
         };
+
+        if header.entry_count >= limits.entry_limit as u32 {
+            return Err(PakError::EntryLimit(header.entry_count, limits.entry_limit))
+        }
         info!("{} entries detected", header.entry_count);
         debug!("Block size is {} bytes", header.block_size);
         debug!("Flag bits {:#032b}", header.flags().0);
@@ -87,6 +114,7 @@ impl Pak {
         let first_offset = header.data_offset() / header.block_size();
 
         // Read some unknown data before the data we want
+        // TODO: This *must* be done differently for real, figure it out!
         let mut unknown_pre_data = Vec::new();
         while input.stream_position()? < header.data_offset() as u64 {
             let unknown = input.read_u32::<LE>()?;
@@ -111,7 +139,7 @@ impl Pak {
         for _ in 0..header.entry_count() {
             let offset = input.read_u32::<LE>().unwrap();
             let length = input.read_u32::<LE>().unwrap();
-            offsets.push(FileLocation {
+            offsets.push(EntryLocation {
                 offset,
                 length,
             });

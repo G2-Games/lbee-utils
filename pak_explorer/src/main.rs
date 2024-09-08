@@ -1,22 +1,47 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use std::fs;
-
+use colog;
 use eframe::egui::{self, ColorImage, Image, TextureFilter, TextureHandle, TextureOptions};
+use log::error;
 use luca_pak::{entry::EntryType, Pak};
 
 fn main() -> eframe::Result {
+    colog::default_builder()
+        .filter(None, log::LevelFilter::Warn)
+        .init();
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 800.0]),
         follow_system_theme: true,
         ..Default::default()
     };
+
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        "Noto Sans".to_owned(),
+        egui::FontData::from_static(include_bytes!("/home/g2/Downloads/Noto_Sans/static/NotoSans-Regular.ttf")),
+    );
+    fonts.font_data.insert(
+        "Noto Sans Japanese".to_owned(),
+        egui::FontData::from_static(include_bytes!("/home/g2/Downloads/Noto_Sans_JP/static/NotoSansJP-Regular.ttf")),
+    );
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "Noto Sans".to_owned());
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(1, "Noto Sans Japanese".to_owned());
+
     eframe::run_native(
         "LUCA PAK Explorer",
         options,
         Box::new(|cc| {
-            // This gives us image support:
-            egui_extras::install_image_loaders(&cc.egui_ctx);
+            cc.egui_ctx.set_fonts(fonts);
 
             Ok(Box::<PakExplorer>::default())
         }),
@@ -48,17 +73,23 @@ impl eframe::App for PakExplorer {
             ui.heading("PAK File Explorer");
 
             ui.horizontal(|ui| {
-                if ui.button("Open file…").clicked() {
+                if ui.button("Open file").clicked() {
                     if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        let pak = Pak::open(&path).unwrap();
-                        self.open_file = Some(pak);
+                        let pak = match Pak::open(&path) {
+                            Ok(pak) => Some(pak),
+                            Err(e) => {
+                                error!("Unable to read selected file as PAK: {}", e);
+                                None
+                            },
+                        };
+                        self.open_file = pak;
                         self.selected_entry = None;
                         self.image_texture = None;
                         self.hex_string = None;
                     }
                 }
                 if let Some(pak) = &self.open_file {
-                    if ui.button("Save PAK…").clicked() {
+                    if ui.button("Save PAK").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
                                 .set_file_name(pak.path().file_name().unwrap().to_string_lossy())
                                 .save_file()
@@ -105,7 +136,7 @@ impl eframe::App for PakExplorer {
 
             if let Some(entry) = &self.selected_entry {
                 ui.horizontal(|ui| {
-                    if ui.button("Save entry…").clicked() {
+                    if ui.button("Save entry").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
                             .set_file_name(entry.display_name())
                             .save_file()
@@ -115,7 +146,7 @@ impl eframe::App for PakExplorer {
                     }
 
                     if let Some(pak) = &mut self.open_file.as_mut() {
-                        if ui.button("Replace entry…").clicked() {
+                        if ui.button("Replace entry").clicked() {
                             if let Some(path) = rfd::FileDialog::new().pick_file() {
                                 let file_bytes = fs::read(path).unwrap();
                                 pak.replace(entry.index(), &file_bytes).unwrap();
@@ -128,7 +159,7 @@ impl eframe::App for PakExplorer {
                         | EntryType::CZ2 | EntryType::CZ3
                         | EntryType::CZ4 | EntryType::CZ5 =>
                     {
-                        if ui.button("Save as PNG…").clicked() {
+                        if ui.button("Save as PNG").clicked() {
                             let mut display_name = entry.display_name();
                             display_name.push_str(".png");
                             if let Some(path) = rfd::FileDialog::new()

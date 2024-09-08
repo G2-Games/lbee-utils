@@ -10,9 +10,11 @@ authors.workspace = true
 publish = false
 
 [dependencies]
+colog = "1.3.0"
 cz = { path = "../cz/", features = ["png"] }
 eframe = { version = "0.28.1", default-features = false, features = ["wayland", "x11", "accesskit", "default_fonts", "wgpu"] }
 egui_extras = "0.28.1"
+log = "0.4.22"
 luca_pak = { path = "../luca_pak/" }
 rfd = "0.14.1"
 
