@@ -17,36 +17,10 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    let mut fonts = egui::FontDefinitions::default();
-    fonts.font_data.insert(
-        "Noto Sans".to_owned(),
-        egui::FontData::from_static(include_bytes!(
-            "/home/g2/Downloads/Noto_Sans/static/NotoSans-Regular.ttf"
-        )),
-    );
-    fonts.font_data.insert(
-        "Noto Sans Japanese".to_owned(),
-        egui::FontData::from_static(include_bytes!(
-            "/home/g2/Downloads/Noto_Sans_JP/static/NotoSansJP-Regular.ttf"
-        )),
-    );
-    fonts
-        .families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .insert(0, "Noto Sans".to_owned());
-    fonts
-        .families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .insert(1, "Noto Sans Japanese".to_owned());
-
     eframe::run_native(
         "LUCA PAK Explorer",
         options,
-        Box::new(|cc| {
-            cc.egui_ctx.set_fonts(fonts);
-
+        Box::new(|_ctx| {
             Ok(Box::<PakExplorer>::default())
         }),
     )
