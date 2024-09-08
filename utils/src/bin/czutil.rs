@@ -1,5 +1,8 @@
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Utility to maniuplate CZ image files from the LUCA System game engine by
 /// Prototype Ltd.

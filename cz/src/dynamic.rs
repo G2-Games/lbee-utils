@@ -223,12 +223,7 @@ impl DynamicCz {
 
     /// Create a CZ# image from RGBA bytes. The bytes *must* be RGBA, as that
     /// is the only format that is used internally.
-    pub fn from_raw(
-        version: CzVersion,
-        width: u16,
-        height: u16,
-        bitmap: Vec<u8>,
-    ) -> Self {
+    pub fn from_raw(version: CzVersion, width: u16, height: u16, bitmap: Vec<u8>) -> Self {
         let header_common = CommonHeader::new(version, width, height);
 
         Self {

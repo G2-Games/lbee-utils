@@ -1,5 +1,5 @@
-use std::io::{self, Write};
 use byteorder::WriteBytesExt;
+use std::io::{self, Write};
 
 use crate::LE;
 

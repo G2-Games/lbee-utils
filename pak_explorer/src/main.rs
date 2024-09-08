@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::fs;
 use colog;
 use eframe::egui::{self, ColorImage, Image, TextureFilter, TextureHandle, TextureOptions};
 use log::error;
 use luca_pak::{entry::EntryType, Pak};
+use std::fs;
 
 fn main() -> eframe::Result {
     colog::default_builder()
@@ -20,11 +20,15 @@ fn main() -> eframe::Result {
     let mut fonts = egui::FontDefinitions::default();
     fonts.font_data.insert(
         "Noto Sans".to_owned(),
-        egui::FontData::from_static(include_bytes!("/home/g2/Downloads/Noto_Sans/static/NotoSans-Regular.ttf")),
+        egui::FontData::from_static(include_bytes!(
+            "/home/g2/Downloads/Noto_Sans/static/NotoSans-Regular.ttf"
+        )),
     );
     fonts.font_data.insert(
         "Noto Sans Japanese".to_owned(),
-        egui::FontData::from_static(include_bytes!("/home/g2/Downloads/Noto_Sans_JP/static/NotoSansJP-Regular.ttf")),
+        egui::FontData::from_static(include_bytes!(
+            "/home/g2/Downloads/Noto_Sans_JP/static/NotoSansJP-Regular.ttf"
+        )),
     );
     fonts
         .families
@@ -80,7 +84,7 @@ impl eframe::App for PakExplorer {
                             Err(e) => {
                                 error!("Unable to read selected file as PAK: {}", e);
                                 None
-                            },
+                            }
                         };
                         self.open_file = pak;
                         self.selected_entry = None;
@@ -91,8 +95,8 @@ impl eframe::App for PakExplorer {
                 if let Some(pak) = &self.open_file {
                     if ui.button("Save PAK").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
-                                .set_file_name(pak.path().file_name().unwrap().to_string_lossy())
-                                .save_file()
+                            .set_file_name(pak.path().file_name().unwrap().to_string_lossy())
+                            .save_file()
                         {
                             pak.save(&path).unwrap();
                         }
@@ -103,7 +107,10 @@ impl eframe::App for PakExplorer {
             ui.separator();
 
             if let Some(pak) = &self.open_file {
-                ui.label(format!("Opened {}", pak.path().file_name().unwrap().to_string_lossy()));
+                ui.label(format!(
+                    "Opened {}",
+                    pak.path().file_name().unwrap().to_string_lossy()
+                ));
                 ui.label(format!("Contains {} Entries", pak.entries().len()));
 
                 let selection = if let Some(entry) = &self.selected_entry {
@@ -115,23 +122,23 @@ impl eframe::App for PakExplorer {
                 egui::ComboBox::from_id_source("my-combobox")
                     .selected_text(selection)
                     .truncate()
-                    .show_ui(ui, |ui|
-                {
-                    ui.selectable_value(&mut self.selected_entry, None, "");
-                    for entry in pak.entries() {
-                        if ui.selectable_value(
-                            &mut self.selected_entry,
-                            Some(entry.clone()),
-                            entry.display_name(),
-                        ).clicked() {
-                            self.image_texture = None;
-                        };
-                    }
-                });
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.selected_entry, None, "");
+                        for entry in pak.entries() {
+                            if ui
+                                .selectable_value(
+                                    &mut self.selected_entry,
+                                    Some(entry.clone()),
+                                    entry.display_name(),
+                                )
+                                .clicked()
+                            {
+                                self.image_texture = None;
+                            };
+                        }
+                    });
             } else {
-                ui.centered_and_justified(|ui|
-                    ui.label("No File Opened")
-                );
+                ui.centered_and_justified(|ui| ui.label("No File Opened"));
             }
 
             if let Some(entry) = &self.selected_entry {
@@ -155,10 +162,12 @@ impl eframe::App for PakExplorer {
                     }
                 });
                 match entry.file_type() {
-                    EntryType::CZ0 | EntryType::CZ1
-                        | EntryType::CZ2 | EntryType::CZ3
-                        | EntryType::CZ4 | EntryType::CZ5 =>
-                    {
+                    EntryType::CZ0
+                    | EntryType::CZ1
+                    | EntryType::CZ2
+                    | EntryType::CZ3
+                    | EntryType::CZ4
+                    | EntryType::CZ5 => {
                         if ui.button("Save as PNG").clicked() {
                             let mut display_name = entry.display_name();
                             display_name.push_str(".png");
@@ -166,7 +175,10 @@ impl eframe::App for PakExplorer {
                                 .set_file_name(display_name)
                                 .save_file()
                             {
-                                let cz = cz::DynamicCz::decode(&mut std::io::Cursor::new(entry.as_bytes())).unwrap();
+                                let cz = cz::DynamicCz::decode(&mut std::io::Cursor::new(
+                                    entry.as_bytes(),
+                                ))
+                                .unwrap();
                                 cz.save_as_png(&path).unwrap();
                             }
                         }
@@ -174,37 +186,39 @@ impl eframe::App for PakExplorer {
                         ui.separator();
 
                         let texture: &TextureHandle = self.image_texture.get_or_insert_with(|| {
-                            let cz = cz::DynamicCz::decode(&mut std::io::Cursor::new(entry.as_bytes())).unwrap();
+                            let cz =
+                                cz::DynamicCz::decode(&mut std::io::Cursor::new(entry.as_bytes()))
+                                    .unwrap();
                             let image = ColorImage::from_rgba_unmultiplied(
                                 [cz.header().width() as usize, cz.header().height() as usize],
-                                cz.as_raw()
+                                cz.as_raw(),
                             );
-                            ui.ctx().load_texture("eventframe", image, TextureOptions {
-                                magnification: TextureFilter::Nearest,
-                                minification: TextureFilter::Linear,
-                                ..Default::default()
-                            })
+                            ui.ctx().load_texture(
+                                "eventframe",
+                                image,
+                                TextureOptions {
+                                    magnification: TextureFilter::Nearest,
+                                    minification: TextureFilter::Linear,
+                                    ..Default::default()
+                                },
+                            )
                         });
 
-                        ui.centered_and_justified(|ui|
+                        ui.centered_and_justified(|ui| {
                             ui.add(
                                 Image::from_texture(texture)
                                     .show_loading_spinner(true)
                                     .shrink_to_fit()
-                                    .rounding(2.0)
+                                    .rounding(2.0),
                             )
-                        );
+                        });
                     }
                     _ => {
-                        ui.centered_and_justified(|ui|
-                            ui.label("No Preview Available")
-                        );
-                    },
+                        ui.centered_and_justified(|ui| ui.label("No Preview Available"));
+                    }
                 }
             } else if self.open_file.is_some() {
-                ui.centered_and_justified(|ui|
-                    ui.label("Select an Entry")
-                );
+                ui.centered_and_justified(|ui| ui.label("Select an Entry"));
             }
         });
     }

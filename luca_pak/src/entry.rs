@@ -1,5 +1,8 @@
 use std::{
-    error::Error, fs::File, io::{BufWriter, Write}, path::Path
+    error::Error,
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
 };
 
 /// A single file entry in a PAK file
@@ -86,7 +89,6 @@ impl Entry {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryType {

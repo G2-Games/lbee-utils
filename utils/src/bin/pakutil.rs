@@ -1,6 +1,9 @@
-use std::{fs, path::PathBuf};
-use clap::{error::{Error, ErrorKind}, Parser, Subcommand};
+use clap::{
+    error::{Error, ErrorKind},
+    Parser, Subcommand,
+};
 use luca_pak::Pak;
+use std::{fs, path::PathBuf};
 
 /// Utility to maniuplate PAK archive files from the LUCA System game engine by
 /// Prototype Ltd.
@@ -58,7 +61,7 @@ fn main() {
 
     let mut pak = match Pak::open(&cli.input) {
         Ok(pak) => pak,
-        Err(err) => fmt_error(&format!("Could not open PAK file: {}", err)).exit()
+        Err(err) => fmt_error(&format!("Could not open PAK file: {}", err)).exit(),
     };
 
     match cli.command {
@@ -74,8 +77,14 @@ fn main() {
                 outpath.push(entry.display_name());
                 entry.save(&outpath).unwrap();
             }
-        },
-        Commands::Replace { batch, name, id, replacement, output } => {
+        }
+        Commands::Replace {
+            batch,
+            name,
+            id,
+            replacement,
+            output,
+        } => {
             if id.is_some() && name.is_some() {
                 fmt_error("Cannot use ID and name together").exit()
             }
@@ -90,12 +99,8 @@ fn main() {
 
                 for entry in fs::read_dir(replacement).unwrap() {
                     let entry = entry.unwrap();
-                    let search_name: String = entry
-                            .path()
-                            .file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .into();
+                    let search_name: String =
+                        entry.path().file_name().unwrap().to_string_lossy().into();
 
                     let parsed_id: Option<u32> = search_name.parse().ok();
 
@@ -104,9 +109,15 @@ fn main() {
 
                     // Try replacing by name, if that fails, replace by parsed ID
                     if pak.replace_by_name(search_name, &rep_data).is_err() {
-                        fmt_error("Could not replace entry in PAK: Could not find name").print().unwrap()
-                    } else if parsed_id.is_some() && pak.replace_by_id(parsed_id.unwrap(), &rep_data).is_err() {
-                        fmt_error("Could not replace entry in PAK: ID is invalid").print().unwrap()
+                        fmt_error("Could not replace entry in PAK: Could not find name")
+                            .print()
+                            .unwrap()
+                    } else if parsed_id.is_some()
+                        && pak.replace_by_id(parsed_id.unwrap(), &rep_data).is_err()
+                    {
+                        fmt_error("Could not replace entry in PAK: ID is invalid")
+                            .print()
+                            .unwrap()
                     }
                 }
             } else {
@@ -117,11 +128,7 @@ fn main() {
                 let search_name = if let Some(name) = name {
                     name
                 } else {
-                    replacement
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .into()
+                    replacement.file_name().unwrap().to_string_lossy().into()
                 };
 
                 let search_id = if id.is_some() {
@@ -152,8 +159,5 @@ fn main() {
 
 #[inline(always)]
 fn fmt_error(message: &str) -> Error {
-    Error::raw(
-        ErrorKind::ValueValidation,
-        format!("{}\n", message),
-    )
+    Error::raw(ErrorKind::ValueValidation, format!("{}\n", message))
 }

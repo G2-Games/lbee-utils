@@ -5,7 +5,10 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use header::Header;
 use log::{debug, info};
 use std::{
-    ffi::CString, fs::File, io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}
+    ffi::CString,
+    fs::File,
+    io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
 };
 use thiserror::Error;
 
@@ -63,7 +66,7 @@ pub struct PakLimits {
 impl Default for PakLimits {
     fn default() -> Self {
         Self {
-            entry_limit: 10_000, // 10,000 entries
+            entry_limit: 10_000,        // 10,000 entries
             size_limit: 10_000_000_000, // 10 gb
         }
     }
@@ -74,11 +77,7 @@ impl Pak {
     pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<Self, PakError> {
         let mut file = File::open(path)?;
 
-        Pak::decode(
-            &mut file,
-            path.as_ref().to_path_buf(),
-            PakLimits::default()
-        )
+        Pak::decode(&mut file, path.as_ref().to_path_buf(), PakLimits::default())
     }
 
     /// Decode a PAK file from a byte stream.
@@ -105,7 +104,7 @@ impl Pak {
         };
 
         if header.entry_count >= limits.entry_limit as u32 {
-            return Err(PakError::EntryLimit(header.entry_count, limits.entry_limit))
+            return Err(PakError::EntryLimit(header.entry_count, limits.entry_limit));
         }
         info!("{} entries detected", header.entry_count);
         debug!("Block size is {} bytes", header.block_size);
@@ -139,10 +138,7 @@ impl Pak {
         for _ in 0..header.entry_count() {
             let offset = input.read_u32::<LE>().unwrap();
             let length = input.read_u32::<LE>().unwrap();
-            offsets.push(EntryLocation {
-                offset,
-                length,
-            });
+            offsets.push(EntryLocation { offset, length });
         }
 
         // Read all unknown_data1
@@ -180,7 +176,11 @@ impl Pak {
         // Read all entry data
         debug!("Creating entry list");
         let mut entries: Vec<Entry> = Vec::new();
-        for (i, offset_info) in offsets.iter().enumerate().take(header.entry_count() as usize) {
+        for (i, offset_info) in offsets
+            .iter()
+            .enumerate()
+            .take(header.entry_count() as usize)
+        {
             debug!("Seeking to block {}", offset_info.offset);
             // Seek to and read the entry data
             input
@@ -237,18 +237,16 @@ impl Pak {
     }
 
     /// Encode a PAK file into a byte stream.
-    pub fn encode<T: Write>(
-        &self,
-        mut output: &mut T
-    ) -> Result<(), PakError> {
+    pub fn encode<T: Write>(&self, mut output: &mut T) -> Result<(), PakError> {
         self.header.write_into(&mut output)?;
 
         // Write unknown data
         output.write_all(
-            &self.unknown_pre_data
+            &self
+                .unknown_pre_data
                 .iter()
                 .flat_map(|dw| dw.to_le_bytes())
-                .collect::<Vec<u8>>()
+                .collect::<Vec<u8>>(),
         )?;
 
         // Write offsets and lengths
@@ -267,15 +265,11 @@ impl Pak {
         // Write names if the flags indicate it should have them
         if self.header.flags().has_names() {
             if let Some(subdir) = &self.subdirectory {
-                output.write_all(
-                    CString::new(subdir.as_bytes()).unwrap().to_bytes_with_nul()
-                )?;
+                output.write_all(CString::new(subdir.as_bytes()).unwrap().to_bytes_with_nul())?;
             }
             for entry in self.entries() {
                 let name = entry.name.as_ref().unwrap();
-                output.write_all(
-                    CString::new(name.as_bytes()).unwrap().to_bytes_with_nul()
-                )?;
+                output.write_all(CString::new(name.as_bytes()).unwrap().to_bytes_with_nul())?;
             }
         }
 
@@ -285,7 +279,11 @@ impl Pak {
 
         for entry in self.entries() {
             //let block_size = entry.data.len().div_ceil(self.header().block_size as usize);
-            let mut remainder = 2048 - entry.data.len().rem_euclid(self.header().block_size as usize);
+            let mut remainder = 2048
+                - entry
+                    .data
+                    .len()
+                    .rem_euclid(self.header().block_size as usize);
             if remainder == 2048 {
                 remainder = 0;
             }
@@ -306,11 +304,7 @@ impl Pak {
     ///
     /// This function updates the offsets of all entries to fit within the
     /// chunk size specified in the header.
-    pub fn replace(
-        &mut self,
-        index: usize,
-        replacement_bytes: &[u8],
-    ) -> Result<(), PakError> {
+    pub fn replace(&mut self, index: usize, replacement_bytes: &[u8]) -> Result<(), PakError> {
         let block_size = self.header().block_size();
 
         let replaced_entry;
@@ -318,7 +312,7 @@ impl Pak {
             replaced_entry = entry
         } else {
             log::error!("Entry {} not found!", index);
-            return Err(PakError::IndexError)
+            return Err(PakError::IndexError);
         };
 
         if let Some(name) = replaced_entry.name() {
@@ -332,8 +326,7 @@ impl Pak {
         replaced_entry.length = replaced_entry.data.len() as u32;
 
         // Get the offset of the next entry based on the current one
-        let mut next_offset =
-            replaced_entry.offset + replaced_entry.length.div_ceil(block_size);
+        let mut next_offset = replaced_entry.offset + replaced_entry.length.div_ceil(block_size);
 
         // Update the position of all subsequent entries
         let mut i = 0;
@@ -361,7 +354,7 @@ impl Pak {
         let index = if let Some(entry) = entry {
             entry.index
         } else {
-            return Err(PakError::IndexError)
+            return Err(PakError::IndexError);
         };
 
         self.replace(index, replacement_bytes)?;
@@ -369,16 +362,12 @@ impl Pak {
         Ok(())
     }
 
-    pub fn replace_by_id(
-        &mut self,
-        id: u32,
-        replacement_bytes: &[u8],
-    ) -> Result<(), PakError> {
+    pub fn replace_by_id(&mut self, id: u32, replacement_bytes: &[u8]) -> Result<(), PakError> {
         let entry = self.get_entry_by_id(id);
         let index = if let Some(entry) = entry {
             entry.index
         } else {
-            return Err(PakError::IndexError)
+            return Err(PakError::IndexError);
         };
 
         self.replace(index, replacement_bytes)?;
@@ -397,16 +386,13 @@ impl Pak {
 
     /// Get an individual entry from the PAK by its ID
     pub fn get_entry_by_id(&mut self, id: u32) -> Option<&mut Entry> {
-        self.entries
-            .get_mut((id - self.header.id_start) as usize)
+        self.entries.get_mut((id - self.header.id_start) as usize)
     }
 
     pub fn get_entry_by_name(&mut self, name: &str) -> Option<&mut Entry> {
         self.entries
             .iter_mut()
-            .find(|e|
-                e.name.as_ref().is_some_and(|n| n == name)
-            )
+            .find(|e| e.name.as_ref().is_some_and(|n| n == name))
     }
 
     /// Get a list of all entries from the PAK
@@ -418,8 +404,7 @@ impl Pak {
     pub fn contains_name(&self, name: &str) -> bool {
         self.entries
             .iter()
-            .any(|e| e.name.as_ref()
-            .is_some_and(|n| n == name))
+            .any(|e| e.name.as_ref().is_some_and(|n| n == name))
     }
 }
 

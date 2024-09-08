@@ -391,7 +391,7 @@ fn compress_lzw2(data: &[u8], last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
 
         if dictionary_count >= 0x3FFFE {
             count -= 1;
-            break
+            break;
         }
     }
 
