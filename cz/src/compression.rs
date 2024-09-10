@@ -1,10 +1,10 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     collections::HashMap,
-    io::{Read, Seek, Write},
+    io::{Cursor, Read, Seek, Write},
 };
 
-use crate::binio::BitIo;
+use crate::binio::{BitReader, BitWriter};
 use crate::common::CzError;
 
 /// The size of compressed data in each chunk
@@ -163,7 +163,7 @@ pub fn decompress2<T: Seek + ReadBytesExt + Read>(
 }
 
 fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
-    let mut data = input_data.to_vec();
+    let mut data = Cursor::new(input_data);
     let mut dictionary = HashMap::new();
     for i in 0..256 {
         dictionary.insert(i as u64, vec![i as u8]);
@@ -172,21 +172,20 @@ fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
     let mut result = Vec::with_capacity(size);
 
     let data_size = input_data.len();
-    data.extend_from_slice(&[0, 0]);
-    let mut bit_io = BitIo::new(data);
+    let mut bit_io = BitReader::new(&mut data);
     let mut w = dictionary.get(&0).unwrap().clone();
 
     let mut element;
     loop {
+        if bit_io.byte_offset() >= data_size - 1 {
+            break;
+        }
+
         let flag = bit_io.read_bit(1);
         if flag == 0 {
             element = bit_io.read_bit(15);
         } else {
             element = bit_io.read_bit(18);
-        }
-
-        if bit_io.byte_offset() > data_size {
-            break;
         }
 
         let mut entry;
@@ -197,7 +196,7 @@ fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
             entry = w.clone();
             entry.push(w[0])
         } else {
-            panic!("Bad compressed element: {}", element)
+            panic!("Bad compressed element {} at offset {}", element, bit_io.byte_offset())
         }
 
         //println!("{}", element);
@@ -363,8 +362,9 @@ fn compress_lzw2(data: &[u8], last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
         element = last
     }
 
-    let mut bit_io = BitIo::new(vec![0u8; 0xF0000]);
-    let write_bit = |bit_io: &mut BitIo, code: u64| {
+    let mut output_buf = Vec::new();
+    let mut bit_io = BitWriter::new(&mut output_buf);
+    let write_bit = |bit_io: &mut BitWriter<Vec<u8>>, code: u64| {
         if code > 0x7FFF {
             bit_io.write_bit(1, 1);
             bit_io.write_bit(code, 18);
@@ -402,13 +402,18 @@ fn compress_lzw2(data: &[u8], last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
                 write_bit(&mut bit_io, *dictionary.get(&vec![c]).unwrap());
             }
         }
-        return (count, bit_io.bytes(), Vec::new());
+
+        bit_io.flush().unwrap();
+        return (count, output_buf, Vec::new());
     } else if bit_io.byte_size() < 0x87BDF {
         if !last_element.is_empty() {
             write_bit(&mut bit_io, *dictionary.get(&last_element).unwrap());
         }
-        return (count, bit_io.bytes(), Vec::new());
+
+        bit_io.flush().unwrap();
+        return (count, output_buf, Vec::new());
     }
 
-    (count, bit_io.bytes(), last_element)
+    bit_io.flush().unwrap();
+    (count, output_buf, last_element)
 }
