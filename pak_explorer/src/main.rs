@@ -20,7 +20,9 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "LUCA PAK Explorer",
         options,
-        Box::new(|_ctx| {
+        Box::new(|ctx| {
+            let ppp = ctx.egui_ctx.pixels_per_point() * 1.5;
+            ctx.egui_ctx.set_pixels_per_point(ppp);
             Ok(Box::<PakExplorer>::default())
         }),
     )
@@ -29,6 +31,7 @@ fn main() -> eframe::Result {
 struct PakExplorer {
     open_file: Option<Pak>,
     selected_entry: Option<luca_pak::entry::Entry>,
+    entry_text: String,
     image_texture: Option<egui::TextureHandle>,
     hex_string: Option<Vec<String>>,
 }
@@ -40,6 +43,7 @@ impl Default for PakExplorer {
             selected_entry: None,
             image_texture: None,
             hex_string: None,
+            entry_text: String::new(),
         }
     }
 }
@@ -47,7 +51,6 @@ impl Default for PakExplorer {
 impl eframe::App for PakExplorer {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ctx.set_pixels_per_point(1.5);
             ui.heading("PAK File Explorer");
 
             ui.horizontal(|ui| {
@@ -93,24 +96,30 @@ impl eframe::App for PakExplorer {
                     "None".to_string()
                 };
 
-                egui::ComboBox::from_id_source("my-combobox")
-                    .selected_text(selection)
-                    .truncate()
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.selected_entry, None, "");
-                        for entry in pak.entries() {
-                            if ui
-                                .selectable_value(
-                                    &mut self.selected_entry,
-                                    Some(entry.clone()),
-                                    entry.display_name(),
-                                )
-                                .clicked()
-                            {
-                                self.image_texture = None;
-                            };
-                        }
-                    });
+                ui.horizontal(|ui| {
+                    egui::ComboBox::from_id_source("my-combobox")
+                        .selected_text(selection.clone())
+                        .truncate()
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.selected_entry, None, "");
+                            for entry in pak.entries() {
+                                if ui
+                                    .selectable_value(
+                                        &mut self.selected_entry,
+                                        Some(entry.clone()),
+                                        format!("{} - {}", entry.display_name(), entry.id()),
+                                    )
+                                    .clicked()
+                                {
+                                    self.image_texture = None;
+                                };
+                            }
+                        });
+
+                    if let Some(entry) = &self.selected_entry {
+                        ui.label(format!("Index {}, ID {}", entry.index(), entry.id()));
+                    }
+                });
             } else {
                 ui.centered_and_justified(|ui| ui.label("No File Opened"));
             }
