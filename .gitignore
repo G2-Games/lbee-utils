@@ -19,6 +19,7 @@ Cargo.lock
 *.png
 *.ttf
 *.otf
+*.lscr
 
 # Ignore PAK files
 *.PAK

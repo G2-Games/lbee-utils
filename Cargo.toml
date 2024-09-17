@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "cz",
     "pak_explorer",
-    "luca_pak", "utils",
+    "luca_pak", "utils", "luca_script",
 ]
 
 [workspace.package]
