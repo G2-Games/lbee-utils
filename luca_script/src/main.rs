@@ -1,4 +1,4 @@
-use std::{fs::File, io::{Read, Seek}, process::exit};
+use std::{fs::File, io::{Read, Seek}};
 use byteorder::{ReadBytesExt, LE};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -14,19 +14,18 @@ fn main() {
                 opcode.to_u8().unwrap(),
                 opcode
             );
-            if opcode == Opcode::TASK {
-                break;
-            }
+
             match opcode {
                 Opcode::MESSAGE => {
                     let variables = script.read_u8().unwrap();
                     match variables {
                         1 => continue,
                         4 => {
-                            dbg!(script.read_u32::<LE>().unwrap());
+                            script.read_u32::<LE>().unwrap();
                             continue;
                         }
-                        _ => (),
+                        3 => (),
+                        _ => unimplemented!(),
                     }
                     let message = Message {
                         variables,
@@ -38,9 +37,33 @@ fn main() {
                     message.messages.unwrap().iter().for_each(|m| println!("{}", m.to_string()));
                     println!("-----");
                 },
+                Opcode::IMAGELOAD => {
+                    let mode = script.read_u8().unwrap();
+                    match mode {
+                        0 => script.read_u16::<LE>().unwrap(),
+                        _ => {
+                            script.read_u16::<LE>().unwrap();
+                            script.read_u16::<LE>().unwrap()
+                        },
+                    };
+                    let image_id = script.read_u16::<LE>().unwrap();
+                    println!("Image ID: {image_id}\n-----");
+                },
+                /*
+                Opcode::SELECT => {
+                    let var_id = script.read_u16::<LE>().unwrap();
+                    script.read_u16::<LE>().unwrap();
+                    script.read_u16::<LE>().unwrap();
+                    script.read_u16::<LE>().unwrap();
+                    let msg_str = script.read_u16::<LE>().unwrap();
+                    script.read_u16::<LE>().unwrap();
+                    script.read_u16::<LE>().unwrap();
+                    script.read_u16::<LE>().unwrap();
+                    println!("{var_id} & {msg_str}\n-----");
+                },
+                */
                 Opcode::JUMP => {
-                    dbg!(script.read_u32::<LE>().unwrap());
-                    println!("------");
+                    script.read_u16::<LE>().unwrap();
                 }
                 _ => (),
             }
