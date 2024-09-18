@@ -1,8 +1,57 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::{Read, Seek}, process::exit};
+use byteorder::{ReadBytesExt, LE};
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
+
+fn main() {
+    let mut script = File::open("LOOPERS_scenario_01").unwrap();
+
+    while let Ok(byte) = script.read_u8() {
+        if let Some(opcode) = Opcode::from_u8(byte) {
+            println!(
+                "{:X?}: {:#04X?} ({:?})",
+                script.stream_position().unwrap() - 1,
+                opcode.to_u8().unwrap(),
+                opcode
+            );
+            if opcode == Opcode::TASK {
+                break;
+            }
+            match opcode {
+                Opcode::MESSAGE => {
+                    let variables = script.read_u8().unwrap();
+                    match variables {
+                        1 => continue,
+                        4 => {
+                            dbg!(script.read_u32::<LE>().unwrap());
+                            continue;
+                        }
+                        _ => (),
+                    }
+                    let message = Message {
+                        variables,
+                        unknown1: Some(script.read_u16::<LE>().unwrap()),
+                        unknown2: Some(script.read_u16::<LE>().unwrap()),
+                        index: Some(script.read_u16::<LE>().unwrap()),
+                        messages: Some((0..3).map(|_| ScriptString::read(&mut script)).collect()),
+                    };
+                    message.messages.unwrap().iter().for_each(|m| println!("{}", m.to_string()));
+                    println!("-----");
+                },
+                Opcode::JUMP => {
+                    dbg!(script.read_u32::<LE>().unwrap());
+                    println!("------");
+                }
+                _ => (),
+            }
+        }
+    }
+}
 
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive)]
 enum Opcode {
     EQU,
     EQUN,
@@ -143,165 +192,77 @@ enum Opcode {
     UNKNOWN
 }
 
-impl TryFrom<u8> for Opcode {
-    type Error = ();
+#[derive(Debug, PartialEq, Eq)]
+struct Message {
+    variables: u8,
+    unknown1: Option<u16>,
+    unknown2: Option<u16>,
+    index: Option<u16>,
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let val = match value {
-            0 => Opcode::EQU,
-            1 => Opcode::EQUN,
-            2 => Opcode::EQUV,
-            3 => Opcode::ADD,
-            4 => Opcode::SUB,
-            5 => Opcode::MUL,
-            6 => Opcode::DIV,
-            7 => Opcode::MOD,
-            8 => Opcode::AND,
-            9 => Opcode::OR,
-            10 => Opcode::RANDOM,
-            11 => Opcode::VARSTR,
-            12 => Opcode::VARSTR_ADD,
-            13 => Opcode::SET,
-            14 => Opcode::FLAGCLR,
-            15 => Opcode::GOTO,
-            16 => Opcode::ONGOTO,
-            17 => Opcode::GOSUB,
-            18 => Opcode::IFY,
-            19 => Opcode::IFN,
-            20 => Opcode::RETURN,
-            21 => Opcode::JUMP,
-            22 => Opcode::FARCALL,
-            23 => Opcode::FARRETURN,
-            24 => Opcode::JUMPPOINT,
-            25 => Opcode::END,
-            26 => Opcode::STARTUP_BEGIN,
-            27 => Opcode::STARTUP_END,
-            28 => Opcode::TASKSCRVAR,
-            29 => Opcode::VARSTR_SET,
-            30 => Opcode::VARSTR_ALLOC,
-            31 => Opcode::ARFLAGSET,
-            32 => Opcode::COLORBG_SET,
-            33 => Opcode::SPLINE_SET,
-            34 => Opcode::SHAKELIST_SET,
-            35 => Opcode::SCISSOR_TRIANGLELIST_SET,
-            36 => Opcode::MESSAGE,
-            37 => Opcode::MESSAGE_CLEAR,
-            38 => Opcode::MESSAGE_WAIT,
-            39 => Opcode::MESSAGE_AR_SET,
-            40 => Opcode::SELECT,
-            41 => Opcode::CLOSE_WINDOW,
-            42 => Opcode::FADE_WINDOW,
-            43 => Opcode::LOG_BEGIN,
-            44 => Opcode::LOG_PAUSE,
-            45 => Opcode::LOG_END,
-            46 => Opcode::VOICE,
-            47 => Opcode::VOICE_STOP,
-            48 => Opcode::WAIT_COUNT,
-            49 => Opcode::WAIT_TIME,
-            50 => Opcode::WAIT_TEXTFEED,
-            51 => Opcode::FFSTOP,
-            52 => Opcode::INIT,
-            53 => Opcode::STOP,
-            54 => Opcode::IMAGELOAD,
-            55 => Opcode::IMAGEUPDATE,
-            56 => Opcode::ARC,
-            57 => Opcode::MOVE,
-            58 => Opcode::MOVE_SKIP,
-            59 => Opcode::ROT,
-            60 => Opcode::PEND,
-            61 => Opcode::FADE,
-            62 => Opcode::SCALE,
-            63 => Opcode::SHAKE,
-            64 => Opcode::SHAKELIST,
-            65 => Opcode::BASE,
-            66 => Opcode::MCMOVE,
-            67 => Opcode::MCARC,
-            68 => Opcode::MCROT,
-            69 => Opcode::MCSHAKE,
-            70 => Opcode::MCFADE,
-            71 => Opcode::WAIT,
-            72 => Opcode::WAIT_BSKIP,
-            73 => Opcode::DRAW,
-            74 => Opcode::WIPE,
-            75 => Opcode::FRAMEON,
-            76 => Opcode::FRAMEOFF,
-            77 => Opcode::FW,
-            78 => Opcode::SCISSOR,
-            79 => Opcode::DELAY,
-            80 => Opcode::RASTER,
-            81 => Opcode::TONE,
-            82 => Opcode::SCALECOSSIN,
-            83 => Opcode::BMODE,
-            84 => Opcode::SIZE,
-            85 => Opcode::SPLINE,
-            86 => Opcode::DISP,
-            87 => Opcode::MASK,
-            88 => Opcode::FACE,
-            89 => Opcode::SEPIA,
-            90 => Opcode::SEPIA_COLOR,
-            91 => Opcode::CUSTOMMOVE,
-            92 => Opcode::SWAP,
-            93 => Opcode::ADDCOLOR,
-            94 => Opcode::SUBCOLOR,
-            95 => Opcode::SATURATION,
-            96 => Opcode::CONTRAST,
-            97 => Opcode::PRIORITY,
-            98 => Opcode::UVWH,
-            99 => Opcode::EVSCROLL,
-            100 => Opcode::COLORLEVEL,
-            101 => Opcode::NEGA,
-            102 => Opcode::TONECURVE,
-            103 => Opcode::SKIP_SCOPE_BEGIN,
-            104 => Opcode::SKIP_SCOPE_END,
-            105 => Opcode::QUAKE,
-            106 => Opcode::BGM,
-            107 => Opcode::BGM_WAIT_START,
-            108 => Opcode::BGM_WAIT_FADE,
-            109 => Opcode::BGM_PUSH,
-            110 => Opcode::BGM_POP,
-            111 => Opcode::SE,
-            112 => Opcode::SE_STOP,
-            113 => Opcode::SE_WAIT,
-            114 => Opcode::SE_WAIT_COUNT,
-            115 => Opcode::SE_WAIT_FADE,
-            116 => Opcode::VOLUME,
-            117 => Opcode::MOVIE,
-            118 => Opcode::SETCGFLAG,
-            119 => Opcode::EX,
-            120 => Opcode::TROPHY,
-            121 => Opcode::SETBGMFLAG,
-            122 => Opcode::TASK,
-            123 => Opcode::PRINTF,
-            124 => Opcode::DIALOG,
-            125 => Opcode::VIB_PLAY,
-            126 => Opcode::VIB_FILE,
-            127 => Opcode::VIB_STOP,
-            128 => Opcode::CHAR_VOLUME,
-            129 => Opcode::SCENE_REPLAY_END,
-            130 => Opcode::SAVE_THUMBNAIL,
-            131 => Opcode::MANPU,
-            132 => Opcode::SCENARIO,
-            133 => Opcode::SCRIPTLINE,
-            134 => Opcode::COUNTER_SET,
-            135 => Opcode::COUNTER_WAIT,
-            _ => return Err(()),
-        };
+    messages: Option<Vec<ScriptString>>,
+}
 
-        Ok(val)
+impl Default for Message {
+    fn default() -> Self {
+        Self {
+            variables: 1,
+            unknown1: None,
+            unknown2: None,
+            index: None,
+            messages: None
+        }
     }
 }
 
-fn main() {
-    let script = File::open("LOOPERS_scenario_01").unwrap();
+#[derive(Debug, PartialEq, Eq)]
+struct ScriptString {
+    length: i16,
+    format: StringFormat,
+    buffer: Vec<u8>,
+}
 
-    for byte in script.bytes().enumerate() {
-        match Opcode::try_from(byte.1.unwrap()) {
-            Ok(v) => {
-                if v == Opcode::MESSAGE {
-                    println!("{:0X?}: {:?}", byte.0, v)
-                }
+#[derive(Debug, PartialEq, Eq)]
+enum StringFormat {
+    UTF8,
+    UTF16,
+    ShiftJIS,
+    ASCII,
+}
+
+impl ScriptString {
+    fn read<R: Read + ReadBytesExt>(input: &mut R) -> Self {
+        let length = input.read_i16::<LE>().unwrap();
+        let (mut buffer, format) = if length < 0 {
+            // If the length is negative, then the length is the exact length in
+            // bytes??
+            (vec![0u8; length.abs() as usize + 1], StringFormat::UTF8)
+        } else {
+            // Otherwise double the length
+            (vec![0u8; (length as usize + 1) * 2], StringFormat::UTF16)
+        };
+
+        input.read_exact(&mut buffer).unwrap();
+
+        Self {
+            length,
+            format,
+            buffer,
+        }
+    }
+}
+
+impl ToString for ScriptString {
+    fn to_string(&self) -> String {
+        match self.format {
+            StringFormat::UTF8 => String::from_utf8_lossy(&self.buffer).to_string(),
+            StringFormat::UTF16 => {
+                String::from_utf16_lossy(
+                    &self.buffer
+                        .chunks(2)
+                        .map(|c| u16::from_le_bytes(c.try_into().unwrap())).collect::<Vec<u16>>()).to_owned()
             },
-            Err(e) => (),
+            StringFormat::ASCII => String::from_utf8_lossy(&self.buffer).to_string(),
+            _ => unimplemented!(),
         }
     }
 }

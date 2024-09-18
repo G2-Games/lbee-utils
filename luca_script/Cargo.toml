@@ -5,7 +5,9 @@ edition = "2021"
 authors.workspace = true
 
 [dependencies]
-int-enum = "1.1.2"
+byteorder = "1.5"
+num-derive = "0.4"
+num-traits = "0.2"
 
 [lints]
 workspace = true
