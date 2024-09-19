@@ -279,12 +279,12 @@ impl Pak {
 
         for entry in self.entries() {
             //let block_size = entry.data.len().div_ceil(self.header().block_size as usize);
-            let mut remainder = 2048
+            let mut remainder = self.header().block_size as usize
                 - entry
                     .data
                     .len()
                     .rem_euclid(self.header().block_size as usize);
-            if remainder == 2048 {
+            if remainder == self.header().block_size as usize {
                 remainder = 0;
             }
             output.write_all(&entry.data)?;
