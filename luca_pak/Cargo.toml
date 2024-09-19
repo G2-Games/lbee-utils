@@ -1,7 +1,7 @@
 [package]
 name = "luca_pak"
 edition = "2021"
-version = "0.1.2"
+version = "0.1.3"
 description = """
 An encoder/decoder for PAK archive files used in the LUCA System engine by
 Prototype Ltd.
