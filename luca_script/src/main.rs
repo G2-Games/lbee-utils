@@ -8,6 +8,7 @@ use safe_transmute::{transmute_many, SingleManyGuard};
 fn main() {
     let mut script = BufReader::new(File::open("LOOPERS_scenario_01").unwrap());
 
+    let mut unknown_count = 0;
     while let Ok(byte) = script.read_u8() {
         if let Some(opcode) = Opcode::from_u8(byte) {
             println!(
@@ -20,13 +21,16 @@ fn main() {
             parse_opcode(opcode, &mut script).unwrap();
         } else {
             println!(
-                "{:X?}: {:#04X?} (¡{:?}!)",
+                "{:X?}: {:#04X?} (\x1b[0;41m{:?}\x1b[0m)",
                 script.stream_position().unwrap() - 1,
                 byte,
                 Opcode::UNKNOWN,
             );
+            unknown_count += 1;
         }
     }
+
+    println!("Encountered {unknown_count} unknown opcodes, it is very likely these are incorrect");
 }
 
 fn parse_opcode<R: Read + BufRead>(opcode: Opcode, mut input: R) -> Result<(), io::Error> {
@@ -57,37 +61,50 @@ fn parse_opcode<R: Read + BufRead>(opcode: Opcode, mut input: R) -> Result<(), i
             println!("-----");
         },
         Opcode::IMAGELOAD => {
-            let mode = input.read_u8().unwrap();
+            let mode = input.read_u8()?;
             println!("Mode: {mode}");
             if mode == 0 {
-                println!("Unknown: {}", input.read_u16::<LE>().unwrap());
+                println!("Unknown: {}", input.read_u16::<LE>()?);
             } else {
-                println!("Unknown: {}", input.read_u16::<LE>().unwrap());
-                println!("Unknown: {}", input.read_u16::<LE>().unwrap());
+                println!("Unknown: {}", input.read_u16::<LE>()?);
+                println!("Unknown: {}", input.read_u16::<LE>()?);
             }
 
-            let image_id = input.read_u16::<LE>().unwrap();
+            let image_id = input.read_u32::<LE>()?;
             println!("Image ID: {image_id}");
             println!("-----");
         },
-        /*
-        Opcode::SELECT => {
-            let var_id = script.read_u16::<LE>().unwrap();
-            script.read_u16::<LE>().unwrap();
-            script.read_u16::<LE>().unwrap();
-            script.read_u16::<LE>().unwrap();
-            let msg_str = script.read_u16::<LE>().unwrap();
-            script.read_u16::<LE>().unwrap();
-            script.read_u16::<LE>().unwrap();
-            script.read_u16::<LE>().unwrap();
-            println!("{var_id} & {msg_str}\n-----");
-        },
-        */
+        Opcode::BGM => {
+            input.read_u8().unwrap(); // ?
+            input.read_u16::<LE>().unwrap(); // ?
+            let bgm_id = input.read_u32::<LE>().unwrap();
+
+            println!("ID: \x1b[0;45m{bgm_id}\x1b[0m");
+            println!("-----");
+        }
         Opcode::JUMP => {
+            input.read_u8().unwrap();
             input.read_u16::<LE>().unwrap();
         }
         Opcode::VARSTR => {
-            println!("Unknown: {}", input.read_u32::<LE>()?);
+            let id = input.read_u16::<LE>().unwrap();
+            println!("ID: {id}");
+            println!("-----");
+        }
+        Opcode::VARSTR_SET => {
+            let varstr = VarStrSet {
+                opcode,
+                variant: input.read_u8()?,
+                unknown1: input.read_u16::<LE>()?,
+                unknown2: input.read_u16::<LE>()?,
+                string: ScriptString::read(&mut input)?,
+                unknown3: input.read_u16::<LE>()?,
+            };
+            //println!("{}", varstr.string.to_string());
+            println!("{:02X?}", varstr.variant);
+            println!("{:02X?}", varstr.unknown1);
+            println!("ID: {}", varstr.unknown2);
+            println!("{:02X?}", varstr.unknown3);
             println!("-----");
         }
         _ => (),
@@ -252,6 +269,16 @@ struct Message {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+struct VarStrSet {
+    opcode: Opcode,
+    variant: u8,
+    unknown1: u16,
+    unknown2: u16,
+    string: ScriptString,
+    unknown3: u16,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 struct ScriptString {
     length: i16,
     format: StringFormat,
@@ -307,7 +334,6 @@ impl ToString for ScriptString {
             StringFormat::UTF8 | StringFormat::ASCII => String::from_utf8_lossy(&self.buffer).to_string(),
             StringFormat::UTF16 => String::from_utf16_lossy(transmute_many::<u16, SingleManyGuard>(&self.buffer).unwrap()),
             StringFormat::ShiftJIS => SHIFT_JIS.decode(&self.buffer).0.to_string(),
-            _ => unimplemented!(),
         }
     }
 }

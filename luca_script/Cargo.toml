@@ -6,8 +6,10 @@ authors.workspace = true
 
 [dependencies]
 byteorder = "1.5"
+encoding_rs = "0.8.34"
 num-derive = "0.4"
 num-traits = "0.2"
+safe-transmute = "0.11.3"
 
 [lints]
 workspace = true
