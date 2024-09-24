@@ -9,6 +9,8 @@ Tested on the following games:
  - Kanon (2024)
  - planetarian \~Snow Globe~ (Nintendo Switch) (2024)
 
+Please text on your own games and open an issue if something isn't working.
+
 ## Acknowledgments
 The implementation of compresssion and decompression of CZ1, CZ2, CZ3, and CZ4 
 was derived from [LuckSystem](https://github.com/wetor/LuckSystem). The 
