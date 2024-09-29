@@ -51,10 +51,7 @@ metadata can't be changed as of yet, however.
 ### [lbee-utils](https://github.com/G2-Games/lbee-utils/releases/tag/utils-0.1.1)
 Small command line tools for modifying CZ images and PAK archives.
 
-To install with Cargo:![little_busters_cat](https://github.com/user-attachments/assets/21e03263-66f7-4713-9e26-4093fc9c80b9)
-
-![little_busters_cat](https://github.com/user-attachments/assets/d3a7fc09-e7b2-4c20-a53a-88bab350827c)
-
+To install with Cargo:
 ```
 cargo install --git https://github.com/G2-Games/lbee-utils utils
 ```
