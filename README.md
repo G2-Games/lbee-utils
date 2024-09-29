@@ -1,3 +1,8 @@
+<p align="center">
+    <img width="80%" src="https://github.com/user-attachments/assets/6807854b-aa4b-431d-933f-9e5b63ff5ed3">
+</p>
+
+
 # lbee-utils
 A small collection of utilities for exporting and importing assets from games
 made with LUCA System by [Prototype Ltd](https://www.prot.co.jp/).
@@ -46,7 +51,9 @@ metadata can't be changed as of yet, however.
 ### [lbee-utils](https://github.com/G2-Games/lbee-utils/releases/tag/utils-0.1.1)
 Small command line tools for modifying CZ images and PAK archives.
 
-To install with Cargo:
+To install with Cargo:![little_busters_cat](https://github.com/user-attachments/assets/21e03263-66f7-4713-9e26-4093fc9c80b9)
+
+![little_busters_cat](https://github.com/user-attachments/assets/d3a7fc09-e7b2-4c20-a53a-88bab350827c)
 
 ```
 cargo install --git https://github.com/G2-Games/lbee-utils utils
