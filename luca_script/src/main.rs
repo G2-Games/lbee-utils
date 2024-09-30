@@ -6,7 +6,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use safe_transmute::{transmute_many, SingleManyGuard};
 
 fn main() {
-    let mut script = BufReader::new(File::open("LOOPERS_scenario_01").unwrap());
+    let mut script = BufReader::new(File::open("_varset_システムフラグ").unwrap());
 
     let mut unknown_count = 0;
     while let Ok(byte) = script.read_u8() {
@@ -62,15 +62,15 @@ fn parse_opcode<R: Read + BufRead>(opcode: Opcode, mut input: R) -> Result<(), i
         },
         Opcode::IMAGELOAD => {
             let mode = input.read_u8()?;
-            println!("Mode: {mode}");
             if mode == 0 {
-                println!("Unknown: {}", input.read_u16::<LE>()?);
+                input.read_u16::<LE>()?;
             } else {
-                println!("Unknown: {}", input.read_u16::<LE>()?);
-                println!("Unknown: {}", input.read_u16::<LE>()?);
+                input.read_u16::<LE>()?;
+                input.read_u16::<LE>()?;
             }
 
             let image_id = input.read_u32::<LE>()?;
+            println!("Mode: {mode}");
             println!("Image ID: {image_id}");
             println!("-----");
         },
@@ -93,18 +93,38 @@ fn parse_opcode<R: Read + BufRead>(opcode: Opcode, mut input: R) -> Result<(), i
         }
         Opcode::VARSTR_SET => {
             let varstr = VarStrSet {
-                opcode,
                 variant: input.read_u8()?,
                 unknown1: input.read_u16::<LE>()?,
                 unknown2: input.read_u16::<LE>()?,
                 string: ScriptString::read(&mut input)?,
                 unknown3: input.read_u16::<LE>()?,
             };
-            //println!("{}", varstr.string.to_string());
+            println!("{}", varstr.string.to_string());
             println!("{:02X?}", varstr.variant);
             println!("{:02X?}", varstr.unknown1);
             println!("ID: {}", varstr.unknown2);
             println!("{:02X?}", varstr.unknown3);
+            println!("-----");
+        }
+        Opcode::VARSTR_ADD => {
+            let varstr = VarStrAdd {
+                variant: input.read_u8()?,
+                id: input.read_u16::<LE>()?,
+                unknown1: input.read_u16::<LE>()?,
+                string: ScriptString::read(&mut input)?,
+            };
+            println!("{}", varstr.string.to_string());
+            println!("{:02X?}", varstr.variant);
+            println!("ID: {}", varstr.id);
+            println!("{:02X?}", varstr.unknown1);
+            println!("-----");
+        }
+        Opcode::SETCGFLAG => {
+            let variant = input.read_u8()?;
+            let id = input.read_u16::<LE>()?;
+            let unk1 = input.read_u16::<LE>()?;
+            let unk2 = input.read_u16::<LE>()?;
+            println!("ID: {}", id);
             println!("-----");
         }
         _ => (),
@@ -270,12 +290,19 @@ struct Message {
 
 #[derive(Debug, PartialEq, Eq)]
 struct VarStrSet {
-    opcode: Opcode,
     variant: u8,
     unknown1: u16,
     unknown2: u16,
     string: ScriptString,
     unknown3: u16,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct VarStrAdd {
+    variant: u8,
+    id: u16,
+    unknown1: u16,
+    string: ScriptString,
 }
 
 #[derive(Debug, PartialEq, Eq)]
