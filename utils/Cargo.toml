@@ -1,9 +1,10 @@
 [package]
 name = "utils"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors.workspace = true
+build = "build.rs"
 
 [[bin]]
 name = "czutil"
@@ -16,7 +17,10 @@ cz = { path = "../cz/", features = ["png"] }
 luca_pak = { path = "../luca_pak/" }
 
 image = { version = "0.25", default-features = false, features = ["png"] }
-clap = { version = "4.5.9", features = ["derive"] }
+clap = { version = "4.5", features = ["derive", "error-context"] }
+
+[build-dependencies]
+vergen-git2 = { version = "1.0", features = ["build", "cargo", "rustc", "si"] }
 
 [lints]
 workspace = true

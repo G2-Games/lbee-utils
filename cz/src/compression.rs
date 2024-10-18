@@ -1,7 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     collections::HashMap,
-    io::{Cursor, Read, Seek, Write},
+    io::{Read, Seek, Write},
 };
 
 use crate::binio::BitIo;
@@ -362,8 +362,7 @@ fn compress_lzw2(data: &[u8], last: Vec<u8>) -> (usize, Vec<u8>, Vec<u8>) {
         element = last
     }
 
-    let output_buf = Vec::new();
-    let mut bit_io = BitIo::new(output_buf);
+    let mut bit_io = BitIo::new(vec![0u8; 0xF0000]);
     let write_bit = |bit_io: &mut BitIo, code: u64| {
         if code > 0x7FFF {
             bit_io.write_bit(1, 1);

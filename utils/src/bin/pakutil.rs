@@ -3,19 +3,23 @@ use clap::{
     Parser, Subcommand,
 };
 use luca_pak::Pak;
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, process::exit};
 
 /// Utility to maniuplate PAK archive files from the LUCA System game engine by
 /// Prototype Ltd.
 #[derive(Parser)]
 #[command(name = "PAK Utility")]
-#[command(version, about, long_about = None)]
+#[command(author, version, about, long_about = None, disable_version_flag = true)]
 struct Cli {
-    #[arg(value_name = "PAK FILE")]
-    input: PathBuf,
+    /// Show program version information
+    #[arg(short('V'), long)]
+    version: bool,
+
+    #[arg(value_name = "PAK FILE", required_unless_present("version"))]
+    input: Option<PathBuf>,
 
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -59,12 +63,30 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    let mut pak = match Pak::open(&cli.input) {
+    if cli.version {
+        println!(
+            "{}, {} v{}-{}",
+            env!("CARGO_BIN_NAME"),
+                 env!("CARGO_PKG_NAME"),
+                 env!("CARGO_PKG_VERSION"),
+                 &env!("VERGEN_GIT_SHA")[0..=6]
+        );
+        exit(0);
+    }
+
+    let mut pak = match Pak::open(&cli.input.unwrap()) {
         Ok(pak) => pak,
         Err(err) => fmt_error(&format!("Could not open PAK file: {}", err)).exit(),
     };
 
-    match cli.command {
+    let command = match cli.command {
+        Some(c) => c,
+        None => {
+            exit(0);
+        },
+    };
+
+    match command {
         Commands::Extract { output } => {
             if output.exists() && !output.is_dir() {
                 fmt_error("The output given was not a directory").exit()
@@ -74,7 +96,11 @@ fn main() {
 
             for entry in pak.entries() {
                 let mut outpath = output.clone();
-                outpath.push(entry.display_name());
+                if let Some(n) = entry.name() {
+                    outpath.push(n);
+                } else {
+                    outpath.push(entry.index().to_string())
+                }
                 entry.save(&outpath).unwrap();
             }
         }

@@ -1,17 +1,22 @@
-use clap::{error::ErrorKind, Error, Parser, Subcommand};
+use clap::{error::ErrorKind, Command, Error, Parser, Subcommand};
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, process::exit,
 };
 
 /// Utility to maniuplate CZ image files from the LUCA System game engine by
 /// Prototype Ltd.
 #[derive(Parser)]
 #[command(name = "CZ Utility")]
-#[command(version, about, long_about = None)]
+#[command(author, version, about, long_about = None, disable_version_flag = true)]
+#[command(arg_required_else_help(true))]
 struct Cli {
+    /// Show program version information
+    #[arg(short('V'), long)]
+    version: bool,
+
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -63,8 +68,24 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
+    if cli.version {
+        println!(
+            "{}, {} v{}-{}",
+            env!("CARGO_BIN_NAME"),
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            &env!("VERGEN_GIT_SHA")[0..=6]
+        );
+        exit(0);
+    }
+
+    let command = match cli.command {
+        Some(c) => c,
+        None => exit(0),
+    };
+
     // Check what subcommand was run
-    match &cli.command {
+    match &command {
         Commands::Decode {
             input,
             output,
