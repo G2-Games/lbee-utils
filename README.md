@@ -3,7 +3,7 @@
 </p>
 
 
-# lbee-utils
+# Lbee-Utils
 A small collection of utilities for exporting and importing assets from games
 made with LUCA System by [Prototype Ltd](https://www.prot.co.jp/).
 
