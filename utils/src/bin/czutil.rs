@@ -1,4 +1,5 @@
-use clap::{error::ErrorKind, Command, Error, Parser, Subcommand};
+use clap::{error::ErrorKind, Error, Parser, Subcommand};
+use image::ColorType;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -145,16 +146,37 @@ fn main() {
                         }
                     };
 
-                    cz.save_as_png(&final_path).unwrap();
+                    image::save_buffer_with_format(
+                        final_path,
+                        cz.as_raw(),
+                        cz.header().width() as u32,
+                        cz.header().height() as u32,
+                        ColorType::Rgba8,
+                        image::ImageFormat::Png
+                    ).unwrap();
                 }
             } else {
                 let cz = cz::open(input).unwrap();
 
                 if let Some(output) = output {
-                    cz.save_as_png(output).unwrap();
+                    image::save_buffer_with_format(
+                        output,
+                        cz.as_raw(),
+                        cz.header().width() as u32,
+                        cz.header().height() as u32,
+                        ColorType::Rgba8,
+                        image::ImageFormat::Png
+                    ).unwrap();
                 } else {
                     let file_stem = PathBuf::from(input.file_name().unwrap());
-                    cz.save_as_png(&file_stem.with_extension("png")).unwrap();
+                    image::save_buffer_with_format(
+                        file_stem.with_extension("png"),
+                        cz.as_raw(),
+                        cz.header().width() as u32,
+                        cz.header().height() as u32,
+                        ColorType::Rgba8,
+                        image::ImageFormat::Png
+                    ).unwrap();
                 }
             }
         }

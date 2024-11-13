@@ -9,17 +9,11 @@ Prototype Ltd.
 license = "MIT"
 authors.workspace = true
 
-[features]
-png = ["dep:image"]
-
 [dependencies]
-byteorder-lite = "0.1.0"
-thiserror = "1.0"
+byteorder-lite = "0.1"
+thiserror = "2.0"
 imagequant = "4.3"
 rgb = "0.8"
-
-# Only active on PNG feature
-image = { version = "0.25", optional = true }
 
 [lints]
 workspace = true

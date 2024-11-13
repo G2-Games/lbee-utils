@@ -11,9 +11,10 @@ publish = false
 
 [dependencies]
 colog = "1.3.0"
-cz = { path = "../cz/", features = ["png"] }
+cz = { path = "../cz/" }
 eframe = { version = "0.28.1", default-features = false, features = ["wayland", "x11", "accesskit", "default_fonts", "wgpu"] }
 egui_extras = "0.28.1"
+image = { version = "0.25.5", default-features = false, features = ["png"] }
 log = "0.4.22"
 luca_pak = { path = "../luca_pak/" }
 rfd = "0.14.1"

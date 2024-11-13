@@ -192,35 +192,6 @@ impl DynamicCz {
         Ok(())
     }
 
-    /// Save the CZ# image as a lossless PNG file.
-    ///
-    /// Internally, the [`DynamicCz`] struct operates on 32-bit RGBA values,
-    /// which is the highest encountered in CZ# files, therefore saving them
-    /// as a PNG of the same or better quality is lossless.
-    #[cfg(feature = "png")]
-    pub fn save_as_png<P: ?Sized + AsRef<std::path::Path>>(
-        &self,
-        path: &P,
-    ) -> Result<(), image::error::EncodingError> {
-        let size = (self.header_common.width() as u32 * self.header_common.height() as u32) * 4;
-
-        let mut buf = vec![0; size as usize];
-        buf[..self.bitmap.len()].copy_from_slice(&self.bitmap);
-
-        let image = image::RgbaImage::from_raw(
-            self.header_common.width() as u32,
-            self.header_common.height() as u32,
-            buf.clone(),
-        )
-        .unwrap();
-
-        image
-            .save_with_format(path, image::ImageFormat::Png)
-            .unwrap();
-
-        Ok(())
-    }
-
     /// Create a CZ# image from RGBA bytes. The bytes *must* be RGBA, as that
     /// is the only format that is used internally.
     pub fn from_raw(version: CzVersion, width: u16, height: u16, bitmap: Vec<u8>) -> Self {

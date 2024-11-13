@@ -162,7 +162,14 @@ impl eframe::App for PakExplorer {
                                     entry.as_bytes(),
                                 ))
                                 .unwrap();
-                                cz.save_as_png(&path).unwrap();
+                                image::save_buffer_with_format(
+                                    path,
+                                    cz.as_raw(),
+                                    cz.header().width() as u32,
+                                    cz.header().height() as u32,
+                                    image::ColorType::Rgba8,
+                                    image::ImageFormat::Png
+                                ).unwrap();
                             }
                         }
 

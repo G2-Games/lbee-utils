@@ -13,7 +13,7 @@ name = "czutil"
 name = "pakutil"
 
 [dependencies]
-cz = { path = "../cz/", features = ["png"] }
+cz = { path = "../cz/" }
 luca_pak = { path = "../luca_pak/" }
 
 image = { version = "0.25", default-features = false, features = ["png"] }
