@@ -65,11 +65,12 @@ fn main() {
 
     if cli.version {
         println!(
-            "{}, {} v{}-{}",
+            "{}, {} v{}-{} ({})",
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_VERSION"),
-            &env!("VERGEN_GIT_SHA")[0..=6]
+            &env!("VERGEN_GIT_SHA")[0..=6],
+            env!("VERGEN_GIT_COMMIT_DATE"),
         );
         exit(0);
     }
