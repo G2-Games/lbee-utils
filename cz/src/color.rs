@@ -1,4 +1,3 @@
-use byteorder::ReadBytesExt;
 use imagequant::Attributes;
 use rgb::{ComponentSlice, RGBA8};
 use std::{
@@ -35,10 +34,7 @@ impl Palette {
 }
 
 /// Get a palette from the input stream, beginning where the palette starts.
-pub fn get_palette<T: Seek + ReadBytesExt + Read>(
-    input: &mut T,
-    num_colors: usize,
-) -> Result<Palette, CzError> {
+pub fn get_palette<T: Seek + Read>(input: &mut T, num_colors: usize) -> Result<Palette, CzError> {
     let mut colormap = Vec::with_capacity(num_colors);
     let mut rgba_buf = [0u8; 4];
 

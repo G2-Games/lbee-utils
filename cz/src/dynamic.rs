@@ -1,4 +1,4 @@
-use byteorder::ReadBytesExt;
+use byteorder_lite::ReadBytesExt;
 use rgb::ComponentSlice;
 use std::{
     fs::File,

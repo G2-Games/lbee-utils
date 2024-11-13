@@ -8,10 +8,16 @@ fn main() {
     let si = SysinfoBuilder::all_sysinfo().unwrap();
 
     Emitter::default()
-        .add_instructions(&build).unwrap()
-        .add_instructions(&cargo).unwrap()
-        .add_instructions(&git2).unwrap()
-        .add_instructions(&rustc).unwrap()
-        .add_instructions(&si).unwrap()
-        .emit().unwrap();
+        .add_instructions(&build)
+        .unwrap()
+        .add_instructions(&cargo)
+        .unwrap()
+        .add_instructions(&git2)
+        .unwrap()
+        .add_instructions(&rustc)
+        .unwrap()
+        .add_instructions(&si)
+        .unwrap()
+        .emit()
+        .unwrap();
 }

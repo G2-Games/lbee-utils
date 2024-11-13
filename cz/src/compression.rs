@@ -1,4 +1,3 @@
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     collections::HashMap,
     io::{Read, Seek, Write},
@@ -6,6 +5,7 @@ use std::{
 
 use crate::binio::BitIo;
 use crate::common::CzError;
+use byteorder_lite::{ReadBytesExt, WriteBytesExt, LE};
 
 /// The size of compressed data in each chunk
 #[derive(Debug, Clone, Copy)]
@@ -37,10 +37,7 @@ pub struct CompressionInfo {
 }
 
 impl CompressionInfo {
-    pub fn write_into<T: WriteBytesExt + Write>(
-        &self,
-        output: &mut T,
-    ) -> Result<(), std::io::Error> {
+    pub fn write_into<T: Write>(&self, output: &mut T) -> Result<(), std::io::Error> {
         output.write_u32::<LE>(self.chunk_count as u32)?;
 
         for chunk in &self.chunks {
@@ -56,9 +53,7 @@ impl CompressionInfo {
 ///
 /// These are defined by a length value, followed by the number of data chunks
 /// that length value says split into compressed and original size u32 values
-pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
-    bytes: &mut T,
-) -> Result<CompressionInfo, CzError> {
+pub fn get_chunk_info<T: Seek + Read>(bytes: &mut T) -> Result<CompressionInfo, CzError> {
     let parts_count = bytes.read_u32::<LE>()?;
 
     let mut part_sizes = vec![];
@@ -89,7 +84,7 @@ pub fn get_chunk_info<T: Seek + ReadBytesExt + Read>(
 }
 
 /// Decompress an LZW compressed stream like CZ1
-pub fn decompress<T: Seek + ReadBytesExt + Read>(
+pub fn decompress<T: Seek + Read>(
     input: &mut T,
     chunk_info: &CompressionInfo,
 ) -> Result<Vec<u8>, CzError> {
@@ -144,7 +139,7 @@ fn decompress_lzw(input_data: &[u16], size: usize) -> Vec<u8> {
 }
 
 /// Decompress an LZW compressed stream like CZ2
-pub fn decompress2<T: Seek + ReadBytesExt + Read>(
+pub fn decompress2<T: Seek + Read>(
     input: &mut T,
     chunk_info: &CompressionInfo,
 ) -> Result<Vec<u8>, CzError> {
@@ -196,7 +191,11 @@ fn decompress_lzw2(input_data: &[u8], size: usize) -> Vec<u8> {
             entry = w.clone();
             entry.push(w[0])
         } else {
-            panic!("Bad compressed element {} at offset {}", element, bit_io.byte_offset())
+            panic!(
+                "Bad compressed element {} at offset {}",
+                element,
+                bit_io.byte_offset()
+            )
         }
 
         //println!("{}", element);

@@ -1,13 +1,9 @@
-use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use crate::common::{CommonHeader, CzError};
 use crate::compression::{compress, decompress, get_chunk_info};
 
-pub fn decode<T: Seek + ReadBytesExt + Read>(
-    bytes: &mut T,
-    header: &CommonHeader,
-) -> Result<Vec<u8>, CzError> {
+pub fn decode<T: Seek + Read>(bytes: &mut T, header: &CommonHeader) -> Result<Vec<u8>, CzError> {
     let block_info = get_chunk_info(bytes)?;
     bytes.seek(SeekFrom::Start(block_info.length as u64))?;
 
@@ -18,7 +14,7 @@ pub fn decode<T: Seek + ReadBytesExt + Read>(
     Ok(bitmap)
 }
 
-pub fn encode<T: WriteBytesExt + Write>(
+pub fn encode<T: Write>(
     output: &mut T,
     bitmap: &[u8],
     header: &CommonHeader,

@@ -66,7 +66,7 @@ pub struct PakLimits {
 impl Default for PakLimits {
     fn default() -> Self {
         Self {
-            entry_limit: 10_000,        // 10,000 entries
+            entry_limit: 10_000,           // 10,000 entries
             size_limit: u32::MAX as usize, // 10 gb
         }
     }

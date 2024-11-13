@@ -13,12 +13,7 @@ const TEST_IMAGES: &[TestImage] = &[KODIM03, KODIM23, SQPTEXT, DPFLOGO];
 #[test]
 fn cz0_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(
-            CzVersion::CZ0,
-            image.0,
-            image.1,
-            image.2.to_vec()
-        );
+        let original_cz = DynamicCz::from_raw(CzVersion::CZ0, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
@@ -33,12 +28,7 @@ fn cz0_round_trip() {
 #[test]
 fn cz1_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(
-            CzVersion::CZ1,
-            image.0,
-            image.1,
-            image.2.to_vec()
-        );
+        let original_cz = DynamicCz::from_raw(CzVersion::CZ1, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
@@ -54,12 +44,7 @@ fn cz1_round_trip() {
 fn cz2_round_trip() {
     let mut i = 0;
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(
-            CzVersion::CZ2,
-            image.0,
-            image.1,
-            image.2.to_vec()
-        );
+        let original_cz = DynamicCz::from_raw(CzVersion::CZ2, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
@@ -76,12 +61,7 @@ fn cz2_round_trip() {
 #[test]
 fn cz3_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(
-            CzVersion::CZ3,
-            image.0,
-            image.1,
-            image.2.to_vec()
-        );
+        let original_cz = DynamicCz::from_raw(CzVersion::CZ3, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
@@ -96,12 +76,7 @@ fn cz3_round_trip() {
 #[test]
 fn cz4_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(
-            CzVersion::CZ4,
-            image.0,
-            image.1,
-            image.2.to_vec()
-        );
+        let original_cz = DynamicCz::from_raw(CzVersion::CZ4, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();

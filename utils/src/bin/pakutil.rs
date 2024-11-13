@@ -67,9 +67,9 @@ fn main() {
         println!(
             "{}, {} v{}-{}",
             env!("CARGO_BIN_NAME"),
-                 env!("CARGO_PKG_NAME"),
-                 env!("CARGO_PKG_VERSION"),
-                 &env!("VERGEN_GIT_SHA")[0..=6]
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            &env!("VERGEN_GIT_SHA")[0..=6]
         );
         exit(0);
     }
@@ -83,7 +83,7 @@ fn main() {
         Some(c) => c,
         None => {
             exit(0);
-        },
+        }
     };
 
     match command {

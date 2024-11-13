@@ -2,7 +2,7 @@
 
 use std::io::{self, Read, Seek, Write};
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder_lite::{ReadBytesExt, WriteBytesExt, LE};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -132,10 +132,10 @@ impl CommonHeader {
 
         let mut header = Self {
             version,
-            length: bytes.read_u32::<LittleEndian>()?,
-            width: bytes.read_u16::<LittleEndian>()?,
-            height: bytes.read_u16::<LittleEndian>()?,
-            depth: bytes.read_u16::<LittleEndian>()?,
+            length: bytes.read_u32::<LE>()?,
+            width: bytes.read_u16::<LE>()?,
+            height: bytes.read_u16::<LE>()?,
+            depth: bytes.read_u16::<LE>()?,
             unknown: bytes.read_u8()?,
         };
 
@@ -204,10 +204,10 @@ impl CommonHeader {
         let magic_bytes = [b'C', b'Z', b'0' + self.version as u8, b'\0'];
 
         output.write_all(&magic_bytes)?;
-        output.write_u32::<LittleEndian>(self.length() as u32)?;
-        output.write_u16::<LittleEndian>(self.width())?;
-        output.write_u16::<LittleEndian>(self.height())?;
-        output.write_u16::<LittleEndian>(self.depth())?;
+        output.write_u32::<LE>(self.length() as u32)?;
+        output.write_u16::<LE>(self.width())?;
+        output.write_u16::<LE>(self.height())?;
+        output.write_u16::<LE>(self.depth())?;
         output.write_u8(self.color_block())?;
 
         Ok(())
@@ -282,27 +282,27 @@ impl ExtendedHeader {
         self
     }
 
-    pub fn from_bytes<T: Seek + ReadBytesExt + Read>(
+    pub fn from_bytes<T: Seek + Read>(
         input: &mut T,
         common_header: &CommonHeader,
     ) -> Result<Self, CzError> {
         let mut unknown_1 = [0u8; 5];
         input.read_exact(&mut unknown_1)?;
 
-        let crop_width = input.read_u16::<LittleEndian>()?;
-        let crop_height = input.read_u16::<LittleEndian>()?;
+        let crop_width = input.read_u16::<LE>()?;
+        let crop_height = input.read_u16::<LE>()?;
 
-        let bounds_width = input.read_u16::<LittleEndian>()?;
-        let bounds_height = input.read_u16::<LittleEndian>()?;
+        let bounds_width = input.read_u16::<LE>()?;
+        let bounds_height = input.read_u16::<LE>()?;
 
         let mut offset_width = None;
         let mut offset_height = None;
         let mut unknown_2 = None;
         if common_header.length() > 28 {
-            offset_width = Some(input.read_u16::<LittleEndian>()?);
-            offset_height = Some(input.read_u16::<LittleEndian>()?);
+            offset_width = Some(input.read_u16::<LE>()?);
+            offset_height = Some(input.read_u16::<LE>()?);
 
-            unknown_2 = Some(input.read_u32::<LittleEndian>()?);
+            unknown_2 = Some(input.read_u32::<LE>()?);
         }
 
         Ok(Self {
@@ -321,17 +321,17 @@ impl ExtendedHeader {
         })
     }
 
-    pub fn write_into<T: WriteBytesExt + Write>(&self, output: &mut T) -> Result<(), io::Error> {
+    pub fn write_into<T: Write>(&self, output: &mut T) -> Result<(), io::Error> {
         output.write_all(&self.unknown_1)?;
-        output.write_u16::<LittleEndian>(self.crop_width)?;
-        output.write_u16::<LittleEndian>(self.crop_height)?;
-        output.write_u16::<LittleEndian>(self.bounds_width)?;
-        output.write_u16::<LittleEndian>(self.bounds_height)?;
+        output.write_u16::<LE>(self.crop_width)?;
+        output.write_u16::<LE>(self.crop_height)?;
+        output.write_u16::<LE>(self.bounds_width)?;
+        output.write_u16::<LE>(self.bounds_height)?;
 
         if self.offset_width.is_some() {
-            output.write_u16::<LittleEndian>(self.offset_width.unwrap())?;
-            output.write_u16::<LittleEndian>(self.offset_height.unwrap())?;
-            output.write_u32::<LittleEndian>(self.unknown_2.unwrap())?;
+            output.write_u16::<LE>(self.offset_width.unwrap())?;
+            output.write_u16::<LE>(self.offset_height.unwrap())?;
+            output.write_u32::<LE>(self.unknown_2.unwrap())?;
         }
 
         Ok(())

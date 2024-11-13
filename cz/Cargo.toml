@@ -13,7 +13,7 @@ authors.workspace = true
 png = ["dep:image"]
 
 [dependencies]
-byteorder = "1.5"
+byteorder-lite = "0.1.0"
 thiserror = "1.0"
 imagequant = "4.3"
 rgb = "0.8"
