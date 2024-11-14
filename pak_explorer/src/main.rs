@@ -156,7 +156,7 @@ impl eframe::App for PakExplorer {
                                 .set_file_name(display_name)
                                 .save_file()
                             {
-                                let cz = cz::DynamicCz::decode(&mut std::io::Cursor::new(
+                                let cz = cz::CzFile::decode(&mut std::io::Cursor::new(
                                     entry.as_bytes(),
                                 ))
                                 .unwrap();
@@ -175,7 +175,7 @@ impl eframe::App for PakExplorer {
 
                         let texture: &TextureHandle = self.image_texture.get_or_insert_with(|| {
                             let cz =
-                                cz::DynamicCz::decode(&mut std::io::Cursor::new(entry.as_bytes()))
+                                cz::CzFile::decode(&mut std::io::Cursor::new(entry.as_bytes()))
                                     .unwrap();
                             let image = ColorImage::from_rgba_unmultiplied(
                                 [cz.header().width() as usize, cz.header().height() as usize],

@@ -1,10 +1,10 @@
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
+use cz::{common::CzVersion, CzFile};
 use image::ColorType;
 use lbee_utils::version;
+use owo_colors::OwoColorize;
 use std::{
-    fs,
-    path::{Path, PathBuf},
-    process::exit,
+    ascii::AsciiExt, fs, path::{Path, PathBuf}, process::exit
 };
 
 /// Utility to maniuplate CZ image files from the LUCA System game engine by
@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Converts a CZ file to a PNG
+    /// Decode a CZ file to a PNG
     Decode {
         /// Decode a whole folder, and output to another folder
         #[arg(short, long)]
@@ -39,7 +39,26 @@ enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Replace a CZ file's image data
+    /// Encode a PNG file to a CZ
+    Encode {
+        /// Input image to encode
+        #[arg(value_name = "INPUT")]
+        input: PathBuf,
+
+        /// Output CZ file location
+        #[arg(value_name = "OUTPUT")]
+        output: PathBuf,
+
+        /// Output CZ file version
+        #[arg(short, long, value_name = "CZ VERSION")]
+        version: Option<u8>,
+
+        /// Output CZ file bit depth
+        #[arg(short, long, value_name = "CZ BIT DEPTH")]
+        depth: Option<u16>,
+    },
+
+    /// Replace an existing CZ file's image data
     Replace {
         /// Replace a whole folder, and output to another folder,
         /// using a folder of replacements
@@ -265,6 +284,60 @@ fn main() {
                 replace_cz(&input, &output, &replacement, version, depth).unwrap();
             }
         }
+        Commands::Encode {
+            input,
+            output,
+            version,
+            depth
+        } => {
+            if !input.exists() {
+                pretty_error("The original file provided does not exist");
+                exit(1);
+            }
+            if output.exists() {
+                pretty_error("The output path already exists; not overwriting");
+                exit(1);
+            }
+
+            let version = if let Some(v) = version {
+                match CzVersion::try_from(*v) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        pretty_error(&format!("Invalid CZ version {}; must be 0, 1, 2, 3, or 4", v));
+                        exit(1);
+                    },
+                }
+            } else if output.extension().is_some_and(|e| e.to_ascii_lowercase().to_string_lossy().starts_with("cz")) {
+                let ext_string = output.extension().unwrap().to_string_lossy();
+                let last_char = ext_string.chars().last().unwrap();
+                match CzVersion::try_from(last_char) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        pretty_error(&format!("Invalid CZ type {}", e));
+                        exit(1);
+                    },
+                }
+            } else {
+                pretty_error("CZ version not specified or not parseable from file path");
+                exit(1);
+            };
+
+            let image = match image::open(input) {
+                Ok(i) => i.to_rgba8(),
+                Err(e) => {
+                    pretty_error(&format!("Could not open input file: {e}"));
+                    exit(1);
+                },
+            };
+
+            let cz = CzFile::from_raw(
+                version,
+                image.width() as u16,
+                image.height() as u16,
+                image.into_vec()
+            );
+            cz.save_as_cz(output).expect("Saving CZ file failed");
+        }
     }
 }
 
@@ -309,4 +382,8 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     cz.save_as_cz(&output_path.as_ref()).unwrap();
 
     Ok(())
+}
+
+fn pretty_error(message: &str) {
+    eprintln!("{}: {}", "Error".red().italic(), message);
 }

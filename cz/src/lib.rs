@@ -17,14 +17,14 @@ use common::CzError;
 use std::{io::BufReader, path::Path};
 
 /// Open a CZ# file from a path
-pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<DynamicCz, CzError> {
+pub fn open<P: ?Sized + AsRef<Path>>(path: &P) -> Result<CzFile, CzError> {
     let mut img_file = BufReader::new(std::fs::File::open(path)?);
 
-    DynamicCz::decode(&mut img_file)
+    CzFile::decode(&mut img_file)
 }
 
 #[doc(inline)]
-pub use dynamic::DynamicCz;
+pub use dynamic::CzFile;
 
 /*
 #[doc(inline)]

@@ -13,7 +13,7 @@ use crate::{
 
 /// A CZ# interface which can open and save any CZ file type.
 #[derive(Debug, Clone)]
-pub struct DynamicCz {
+pub struct CzFile {
     header_common: CommonHeader,
     header_extended: Option<ExtendedHeader>,
 
@@ -24,7 +24,7 @@ pub struct DynamicCz {
     bitmap: Vec<u8>,
 }
 
-impl DynamicCz {
+impl CzFile {
     /// Decode a CZ# file from anything that implements [`Read`] and [`Seek`]
     ///
     /// The input must begin with the

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use cz::{common::CzVersion, DynamicCz};
+use cz::{common::CzVersion, CzFile};
 
 const KODIM03: (u16, u16, &[u8]) = (128, 128, include_bytes!("test_images/kodim03.rgba"));
 const KODIM23: (u16, u16, &[u8]) = (225, 225, include_bytes!("test_images/kodim23.rgba"));
@@ -13,13 +13,13 @@ const TEST_IMAGES: &[TestImage] = &[KODIM03, KODIM23, SQPTEXT, DPFLOGO];
 #[test]
 fn cz0_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(CzVersion::CZ0, image.0, image.1, image.2.to_vec());
+        let original_cz = CzFile::from_raw(CzVersion::CZ0, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
 
         let mut cz_bytes = Cursor::new(cz_bytes);
-        let decoded_cz = DynamicCz::decode(&mut cz_bytes).unwrap();
+        let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
     }
@@ -28,13 +28,13 @@ fn cz0_round_trip() {
 #[test]
 fn cz1_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(CzVersion::CZ1, image.0, image.1, image.2.to_vec());
+        let original_cz = CzFile::from_raw(CzVersion::CZ1, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
 
         let mut cz_bytes = Cursor::new(cz_bytes);
-        let decoded_cz = DynamicCz::decode(&mut cz_bytes).unwrap();
+        let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
     }
@@ -42,32 +42,29 @@ fn cz1_round_trip() {
 
 #[test]
 fn cz2_round_trip() {
-    let mut i = 0;
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(CzVersion::CZ2, image.0, image.1, image.2.to_vec());
+        let original_cz = CzFile::from_raw(CzVersion::CZ2, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
 
         let mut cz_bytes = Cursor::new(cz_bytes);
-        let decoded_cz = DynamicCz::decode(&mut cz_bytes).unwrap();
+        let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
-
-        i += 1;
     }
 }
 
 #[test]
 fn cz3_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(CzVersion::CZ3, image.0, image.1, image.2.to_vec());
+        let original_cz = CzFile::from_raw(CzVersion::CZ3, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
 
         let mut cz_bytes = Cursor::new(cz_bytes);
-        let decoded_cz = DynamicCz::decode(&mut cz_bytes).unwrap();
+        let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
     }
@@ -76,13 +73,13 @@ fn cz3_round_trip() {
 #[test]
 fn cz4_round_trip() {
     for image in TEST_IMAGES {
-        let original_cz = DynamicCz::from_raw(CzVersion::CZ4, image.0, image.1, image.2.to_vec());
+        let original_cz = CzFile::from_raw(CzVersion::CZ4, image.0, image.1, image.2.to_vec());
 
         let mut cz_bytes = Vec::new();
         original_cz.encode(&mut cz_bytes).unwrap();
 
         let mut cz_bytes = Cursor::new(cz_bytes);
-        let decoded_cz = DynamicCz::decode(&mut cz_bytes).unwrap();
+        let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
     }
