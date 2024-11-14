@@ -43,7 +43,7 @@ pub enum CzVersion {
 }
 
 impl TryFrom<u8> for CzVersion {
-    type Error = &'static str;
+    type Error = String;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -53,7 +53,7 @@ impl TryFrom<u8> for CzVersion {
             3 => Self::CZ3,
             4 => Self::CZ4,
             5 => Self::CZ5,
-            _ => return Err("Value is not a valid CZ version"),
+            v => return Err(format!("{} is not a valid CZ version", v)),
         };
 
         Ok(value)
@@ -61,7 +61,7 @@ impl TryFrom<u8> for CzVersion {
 }
 
 impl TryFrom<char> for CzVersion {
-    type Error = &'static str;
+    type Error = String;
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
         let value = match value {
@@ -71,7 +71,7 @@ impl TryFrom<char> for CzVersion {
             '3' => Self::CZ3,
             '4' => Self::CZ4,
             '5' => Self::CZ5,
-            _ => return Err("Value is not a valid CZ version"),
+            v => return Err(format!("{} is not a valid CZ version", v)),
         };
 
         Ok(value)

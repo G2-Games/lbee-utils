@@ -108,28 +108,19 @@ fn main() {
             batch,
         } => {
             if !input.exists() {
-                Error::raw(
-                    ErrorKind::ValueValidation,
-                    "The input file/folder provided does not exist\n",
-                )
-                .exit()
+                pretty_error("The input file/folder provided does not exist");
+                exit(1);
             }
 
             if *batch {
                 if input.is_file() {
-                    Error::raw(
-                        ErrorKind::ValueValidation,
-                        "Batch input must be a directory\n",
-                    )
-                    .exit()
+                    pretty_error("Batch input must be a directory");
+                    exit(1);
                 }
 
                 if output.is_none() || output.as_ref().unwrap().is_file() {
-                    Error::raw(
-                        ErrorKind::ValueValidation,
-                        "Batch output must be a directory\n",
-                    )
-                    .exit()
+                    pretty_error("Batch output must be a directory");
+                    exit(1);
                 }
 
                 for entry in fs::read_dir(input).unwrap() {
@@ -147,15 +138,10 @@ fn main() {
                     let cz = match cz::open(&path) {
                         Ok(cz) => cz,
                         Err(_) => {
-                            Error::raw(
-                                ErrorKind::ValueValidation,
-                                format!(
-                                    "Could not open input as a CZ file: {}\n",
-                                    path.into_os_string().to_str().unwrap()
-                                ),
-                            )
-                            .print()
-                            .unwrap();
+                            pretty_error(&format!(
+                                "Could not open input as a CZ file: {}\n",
+                                path.into_os_string().to_str().unwrap()
+                            ));
                             continue;
                         }
                     };
@@ -203,45 +189,30 @@ fn main() {
             depth,
         } => {
             if !input.exists() {
-                Error::raw(
-                    ErrorKind::ValueValidation,
-                    "The original file provided does not exist\n",
-                )
-                .exit()
+                pretty_error("The input file does not exist");
+                exit(1);
             }
 
             if !replacement.exists() {
-                Error::raw(
-                    ErrorKind::ValueValidation,
-                    "The replacement file provided does not exist\n",
-                )
-                .exit()
+                pretty_error("The replacement file does not exist");
+                exit(1);
             }
 
             // If it's a batch replacement, we want directories to search
             if *batch {
                 if !input.is_dir() {
-                    Error::raw(
-                        ErrorKind::ValueValidation,
-                        "Batch input location must be a directory\n",
-                    )
-                    .exit()
+                    pretty_error("Batch input must be a directory");
+                    exit(1);
                 }
 
                 if !replacement.is_dir() {
-                    Error::raw(
-                        ErrorKind::ValueValidation,
-                        "Batch replacement location must be a directory\n",
-                    )
-                    .exit()
+                    pretty_error("Batch replacement must be a directory");
+                    exit(1);
                 }
 
                 if !output.is_dir() {
-                    Error::raw(
-                        ErrorKind::ValueValidation,
-                        "Batch output location must be a directory\n",
-                    )
-                    .exit()
+                    pretty_error("Batch output location must be a directory");
+                    exit(1);
                 }
 
                 // Replace all the files within the directory and print errors for them
@@ -273,11 +244,13 @@ fn main() {
                 }
             } else {
                 if !input.is_file() {
-                    Error::raw(ErrorKind::ValueValidation, "Input must be a file\n").exit()
+                    pretty_error("Input must be a file");
+                    exit(1);
                 }
 
                 if !replacement.is_file() {
-                    Error::raw(ErrorKind::ValueValidation, "Replacement must be a file\n").exit()
+                    pretty_error("Replacement must be a file");
+                    exit(1);
                 }
 
                 // Replace the input file with the new image
@@ -292,10 +265,6 @@ fn main() {
         } => {
             if !input.exists() {
                 pretty_error("The original file provided does not exist");
-                exit(1);
-            }
-            if output.exists() {
-                pretty_error("The output path already exists; not overwriting");
                 exit(1);
             }
 
@@ -313,7 +282,7 @@ fn main() {
                 match CzVersion::try_from(last_char) {
                     Ok(v) => v,
                     Err(e) => {
-                        pretty_error(&format!("Invalid CZ type {}", e));
+                        pretty_error(&format!("Invalid CZ type: {}", e));
                         exit(1);
                     },
                 }
@@ -323,19 +292,30 @@ fn main() {
             };
 
             let image = match image::open(input) {
-                Ok(i) => i.to_rgba8(),
+                Ok(i) => i,
                 Err(e) => {
                     pretty_error(&format!("Could not open input file: {e}"));
                     exit(1);
                 },
             };
 
-            let cz = CzFile::from_raw(
+            let image_depth = image.color();
+
+            let mut cz = CzFile::from_raw(
                 version,
                 image.width() as u16,
                 image.height() as u16,
-                image.into_vec()
+                image.to_rgba8().into_vec()
             );
+            if let Some(d) = *depth {
+                if !(d == 8 || d == 24 || d == 32) {
+                    pretty_error(&format!("The color depth provided is not valid. Choose from: {}", "8, 24, or 32".bright_magenta()));
+                    exit(1);
+                }
+                cz.header_mut().set_depth(d);
+            } else {
+                cz.header_mut().set_depth(image_depth.bits_per_pixel());
+            }
             cz.save_as_cz(output).expect("Saving CZ file failed");
         }
     }
