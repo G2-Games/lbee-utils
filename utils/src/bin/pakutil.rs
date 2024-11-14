@@ -2,8 +2,8 @@ use clap::{
     error::{Error, ErrorKind},
     Parser, Subcommand,
 };
-use luca_pak::Pak;
 use lbee_utils::version;
+use luca_pak::Pak;
 use std::{fs, path::PathBuf, process::exit};
 
 /// Utility to maniuplate PAK archive files from the LUCA System game engine by

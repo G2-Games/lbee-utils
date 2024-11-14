@@ -1,7 +1,7 @@
 pub mod entry;
 pub mod header;
 
-use byteorder_lite::{LE, ReadBytesExt, WriteBytesExt};
+use byteorder_lite::{ReadBytesExt, WriteBytesExt, LE};
 use header::Header;
 use log::{debug, info};
 use std::{

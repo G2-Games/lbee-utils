@@ -58,6 +58,10 @@ impl Entry {
         self.length as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Get the raw byte data of an [`Entry`]
     pub fn as_bytes(&self) -> &Vec<u8> {
         &self.data
@@ -66,7 +70,7 @@ impl Entry {
     pub fn display_name(&self) -> String {
         let mut name = self.name().clone().unwrap_or(self.id().to_string());
         let entry_type = self.file_type();
-        name.push_str(&entry_type.extension());
+        name.push_str(entry_type.extension());
 
         name
     }

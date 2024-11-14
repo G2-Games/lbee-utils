@@ -4,7 +4,9 @@ use image::ColorType;
 use lbee_utils::version;
 use owo_colors::OwoColorize;
 use std::{
-    ascii::AsciiExt, fs, path::{Path, PathBuf}, process::exit
+    fs,
+    path::{Path, PathBuf},
+    process::exit,
 };
 
 /// Utility to maniuplate CZ image files from the LUCA System game engine by
@@ -152,8 +154,9 @@ fn main() {
                         cz.header().width() as u32,
                         cz.header().height() as u32,
                         ColorType::Rgba8,
-                        image::ImageFormat::Png
-                    ).unwrap();
+                        image::ImageFormat::Png,
+                    )
+                    .unwrap();
                 }
             } else {
                 let cz = cz::open(input).unwrap();
@@ -165,8 +168,9 @@ fn main() {
                         cz.header().width() as u32,
                         cz.header().height() as u32,
                         ColorType::Rgba8,
-                        image::ImageFormat::Png
-                    ).unwrap();
+                        image::ImageFormat::Png,
+                    )
+                    .unwrap();
                 } else {
                     let file_stem = PathBuf::from(input.file_name().unwrap());
                     image::save_buffer_with_format(
@@ -175,8 +179,9 @@ fn main() {
                         cz.header().width() as u32,
                         cz.header().height() as u32,
                         ColorType::Rgba8,
-                        image::ImageFormat::Png
-                    ).unwrap();
+                        image::ImageFormat::Png,
+                    )
+                    .unwrap();
                 }
             }
         }
@@ -261,7 +266,7 @@ fn main() {
             input,
             output,
             version,
-            depth
+            depth,
         } => {
             if !input.exists() {
                 pretty_error("The original file provided does not exist");
@@ -272,11 +277,17 @@ fn main() {
                 match CzVersion::try_from(*v) {
                     Ok(v) => v,
                     Err(_) => {
-                        pretty_error(&format!("Invalid CZ version {}; must be 0, 1, 2, 3, or 4", v));
+                        pretty_error(&format!(
+                            "Invalid CZ version {}; must be 0, 1, 2, 3, or 4",
+                            v
+                        ));
                         exit(1);
-                    },
+                    }
                 }
-            } else if output.extension().is_some_and(|e| e.to_ascii_lowercase().to_string_lossy().starts_with("cz")) {
+            } else if output
+                .extension()
+                .is_some_and(|e| e.to_ascii_lowercase().to_string_lossy().starts_with("cz"))
+            {
                 let ext_string = output.extension().unwrap().to_string_lossy();
                 let last_char = ext_string.chars().last().unwrap();
                 match CzVersion::try_from(last_char) {
@@ -284,7 +295,7 @@ fn main() {
                     Err(e) => {
                         pretty_error(&format!("Invalid CZ type: {}", e));
                         exit(1);
-                    },
+                    }
                 }
             } else {
                 pretty_error("CZ version not specified or not parseable from file path");
@@ -296,7 +307,7 @@ fn main() {
                 Err(e) => {
                     pretty_error(&format!("Could not open input file: {e}"));
                     exit(1);
-                },
+                }
             };
 
             let image_depth = image.color();
@@ -305,11 +316,14 @@ fn main() {
                 version,
                 image.width() as u16,
                 image.height() as u16,
-                image.to_rgba8().into_vec()
+                image.to_rgba8().into_vec(),
             );
             if let Some(d) = *depth {
                 if !(d == 8 || d == 24 || d == 32) {
-                    pretty_error(&format!("The color depth provided is not valid. Choose from: {}", "8, 24, or 32".bright_magenta()));
+                    pretty_error(&format!(
+                        "The color depth provided is not valid. Choose from: {}",
+                        "8, 24, or 32".bright_magenta()
+                    ));
                     exit(1);
                 }
                 cz.header_mut().set_depth(d);
@@ -339,7 +353,7 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     }
 
     // Open the replacement image and convert it to RGBA8
-    let repl_img = image::open(&replacement_path)?.to_rgba8();
+    let repl_img = image::open(replacement_path)?.to_rgba8();
 
     // Open the original CZ file
     let mut cz = cz::open(&path)?;

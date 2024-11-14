@@ -15,7 +15,7 @@ pub fn decode<T: Seek + Read>(bytes: &mut T) -> Result<Vec<u8>, CzError> {
 }
 
 pub fn encode<T: Write>(output: &mut T, bitmap: &[u8]) -> Result<(), CzError> {
-    let (compressed_data, compressed_info) = compress2(&bitmap);
+    let (compressed_data, compressed_info) = compress2(bitmap);
 
     compressed_info.write_into(output)?;
 

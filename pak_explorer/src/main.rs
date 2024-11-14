@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use colog;
-use eframe::egui::{self, ColorImage, Image, TextureFilter, TextureHandle, TextureOptions, ThemePreference};
+use eframe::egui::{
+    self, ColorImage, Image, TextureFilter, TextureHandle, TextureOptions, ThemePreference,
+};
 use log::error;
 use luca_pak::{entry::EntryType, Pak};
 use std::fs;
@@ -156,18 +158,18 @@ impl eframe::App for PakExplorer {
                                 .set_file_name(display_name)
                                 .save_file()
                             {
-                                let cz = cz::CzFile::decode(&mut std::io::Cursor::new(
-                                    entry.as_bytes(),
-                                ))
-                                .unwrap();
+                                let cz =
+                                    cz::CzFile::decode(&mut std::io::Cursor::new(entry.as_bytes()))
+                                        .unwrap();
                                 image::save_buffer_with_format(
                                     path,
                                     cz.as_raw(),
                                     cz.header().width() as u32,
                                     cz.header().height() as u32,
                                     image::ColorType::Rgba8,
-                                    image::ImageFormat::Png
-                                ).unwrap();
+                                    image::ImageFormat::Png,
+                                )
+                                .unwrap();
                             }
                         }
 
