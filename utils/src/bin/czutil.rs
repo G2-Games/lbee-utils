@@ -1,5 +1,6 @@
 use clap::{error::ErrorKind, Error, Parser, Subcommand};
 use image::ColorType;
+use lbee_utils::version;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -71,14 +72,7 @@ fn main() {
     let cli = Cli::parse();
 
     if cli.version {
-        println!(
-            "{}, {} v{}-{} ({})",
-            env!("CARGO_BIN_NAME"),
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION"),
-            &env!("VERGEN_GIT_SHA")[0..=6],
-            env!("VERGEN_GIT_COMMIT_DATE"),
-        );
+        println!("{}", version(env!("CARGO_BIN_NAME")));
         exit(0);
     }
 

@@ -3,6 +3,7 @@ use clap::{
     Parser, Subcommand,
 };
 use luca_pak::Pak;
+use lbee_utils::version;
 use std::{fs, path::PathBuf, process::exit};
 
 /// Utility to maniuplate PAK archive files from the LUCA System game engine by
@@ -10,6 +11,7 @@ use std::{fs, path::PathBuf, process::exit};
 #[derive(Parser)]
 #[command(name = "PAK Utility")]
 #[command(author, version, about, long_about = None, disable_version_flag = true)]
+#[command(arg_required_else_help(true))]
 struct Cli {
     /// Show program version information
     #[arg(short('V'), long)]
@@ -64,14 +66,7 @@ fn main() {
     let cli = Cli::parse();
 
     if cli.version {
-        println!(
-            "{}, {} v{}-{} ({})",
-            env!("CARGO_BIN_NAME"),
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION"),
-            &env!("VERGEN_GIT_SHA")[0..=6],
-            env!("VERGEN_GIT_COMMIT_DATE"),
-        );
+        println!("{}", version(env!("CARGO_BIN_NAME")));
         exit(0);
     }
 

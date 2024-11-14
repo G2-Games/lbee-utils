@@ -1,7 +1,7 @@
 pub mod entry;
 pub mod header;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder_lite::{LE, ReadBytesExt, WriteBytesExt};
 use header::Header;
 use log::{debug, info};
 use std::{
@@ -11,8 +11,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use thiserror::Error;
-
-type LE = LittleEndian;
 
 use crate::{entry::Entry, header::PakFlags};
 

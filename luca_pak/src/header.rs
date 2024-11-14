@@ -1,4 +1,4 @@
-use byteorder::WriteBytesExt;
+use byteorder_lite::WriteBytesExt;
 use std::io::{self, Write};
 
 use crate::LE;

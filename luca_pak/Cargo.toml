@@ -10,9 +10,9 @@ license = "MIT"
 authors.workspace = true
 
 [dependencies]
-byteorder = "1.5.0"
-log = "0.4.22"
-thiserror = "1.0.61"
+byteorder-lite = "0.1"
+log = "0.4"
+thiserror = "2.0"
 
 [lints]
 workspace = true
