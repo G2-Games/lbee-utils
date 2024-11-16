@@ -53,7 +53,7 @@ Small command line tools for modifying CZ images and PAK archives.
 
 To install with Cargo:
 ```
-cargo install --git https://github.com/G2-Games/lbee-utils utils
+cargo install --git https://github.com/G2-Games/lbee-utils lbee-utils
 ```
 
 Otherwise, download the binaries from the Releases page here.
