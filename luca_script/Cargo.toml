@@ -1,0 +1,12 @@
+[package]
+name = "luca_script"
+version = "0.1.0"
+edition = "2021"
+authors.workspace = true
+
+[dependencies]
+byteorder-lite = "0.1.0"
+encoding_rs = "0.8.35"
+
+[lints]
+workspace = true
