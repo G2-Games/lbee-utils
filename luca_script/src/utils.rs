@@ -8,6 +8,29 @@ pub enum Encoding {
     ShiftJIS,
 }
 
+impl Encoding {
+    pub fn width(&self) -> usize {
+        match self {
+            Self::UTF8 | Self::ShiftJIS => 1,
+            Self::UTF16 => 2,
+        }
+    }
+}
+
+pub fn get_u16(bytes: &[u8], offset: usize) -> Result<(usize, u16), Box<dyn Error>> {
+    Ok((
+        offset + 2,
+        u16::from_le_bytes(bytes[offset..offset + 2].try_into()?)
+    ))
+}
+
+pub fn get_u32(bytes: &[u8], offset: usize) -> Result<(usize, u32), Box<dyn Error>> {
+    Ok((
+        offset + 4,
+        u32::from_le_bytes(bytes[offset..offset + 4].try_into()?)
+    ))
+}
+
 pub fn get_string(
     bytes: &[u8],
     offset: usize,
@@ -18,7 +41,6 @@ pub fn get_string(
 
     // Find the end of the string
     let mut end = 0;
-    let mut char_width = 1;
     if let Some(l) = len {
         end = l;
     } else {
@@ -29,7 +51,6 @@ pub fn get_string(
                 }
             },
             Encoding::UTF16 => {
-                char_width = 2;
                 while (end + 1 < slice.len()) && !((slice[end] == 0) && (slice[end + 1] == 0)) {
                     end += 2
                 }
@@ -37,6 +58,7 @@ pub fn get_string(
         }
     };
 
+    // Get the actual string data using the proper decoder
     let string = match format {
         Encoding::UTF8 => String::from_utf8(slice[..end].to_vec())?,
         Encoding::UTF16 => {
@@ -49,5 +71,5 @@ pub fn get_string(
         Encoding::ShiftJIS => SHIFT_JIS.decode(&slice[..end]).0.to_string(),
     };
 
-    Ok((offset + end + char_width, string))
+    Ok((offset + end + format.width(), string))
 }
