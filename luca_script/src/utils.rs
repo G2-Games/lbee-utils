@@ -1,6 +1,7 @@
-use std::error::Error;
+use std::{error::Error, io::{Read, Write}};
 
 use encoding_rs::*;
+use byteorder_lite::{LE, ReadBytesExt};
 
 pub enum Encoding {
     UTF8,
@@ -17,59 +18,50 @@ impl Encoding {
     }
 }
 
-pub fn get_u16(bytes: &[u8], offset: usize) -> Result<(usize, u16), Box<dyn Error>> {
-    Ok((
-        offset + 2,
-        u16::from_le_bytes(bytes[offset..offset + 2].try_into()?)
-    ))
-}
-
-pub fn get_u32(bytes: &[u8], offset: usize) -> Result<(usize, u32), Box<dyn Error>> {
-    Ok((
-        offset + 4,
-        u32::from_le_bytes(bytes[offset..offset + 4].try_into()?)
-    ))
-}
-
-pub fn get_string(
-    bytes: &[u8],
-    offset: usize,
+pub fn decode_string_v1<R: Read>(
+    input: &mut R,
     format: Encoding,
-    len: Option<usize>
-) -> Result<(usize, String), Box<dyn Error>> {
-    let slice = &bytes[offset..];
+) -> Result<String, Box<dyn Error>> {
 
     // Find the end of the string
-    let mut end = 0;
-    if let Some(l) = len {
-        end = l;
-    } else {
-        match format {
-            Encoding::UTF8 | Encoding::ShiftJIS => {
-                while (end < slice.len()) && (slice[end] != 0) {
-                    end += 1
-                }
-            },
-            Encoding::UTF16 => {
-                while (end + 1 < slice.len()) && !((slice[end] == 0) && (slice[end + 1] == 0)) {
-                    end += 2
-                }
-            },
-        }
-    };
+    let mut string_buf = Vec::new();
+    match format {
+        Encoding::UTF8 | Encoding::ShiftJIS => {
+            let mut string_byte = input.read_u8()?;
+            while string_byte != 0 {
+                string_buf.push(string_byte);
+                string_byte = input.read_u8()?;
+            }
+        },
+        Encoding::UTF16 => {
+            let mut string_u16 = input.read_u16::<LE>()?;
+            while string_u16 != 0 {
+                string_buf.write_all(&string_u16.to_le_bytes()).unwrap();
+                string_u16 = input.read_u16::<LE>()?;
+            }
+        },
+    }
 
     // Get the actual string data using the proper decoder
     let string = match format {
-        Encoding::UTF8 => String::from_utf8(slice[..end].to_vec())?,
+        Encoding::UTF8 => String::from_utf8(string_buf)?,
         Encoding::UTF16 => {
             String::from_utf16(
-                &slice[..end].chunks_exact(2)
+                &string_buf.chunks_exact(2)
                     .map(|e| u16::from_le_bytes(e.try_into().unwrap()))
                     .collect::<Vec<u16>>()
             )?
         }
-        Encoding::ShiftJIS => SHIFT_JIS.decode(&slice[..end]).0.to_string(),
+        Encoding::ShiftJIS => SHIFT_JIS.decode(&string_buf).0.to_string(),
     };
 
-    Ok((offset + end + format.width(), string))
+    Ok(string)
+}
+
+pub fn encode_string_v1(string: String, format: Encoding) -> Vec<u8> {
+    match format {
+        Encoding::UTF8 => string.as_bytes().to_vec(),
+        Encoding::UTF16 => string.encode_utf16().flat_map(|b| b.to_le_bytes()).collect(),
+        Encoding::ShiftJIS => SHIFT_JIS.encode(&string).0.to_vec(),
+    }
 }

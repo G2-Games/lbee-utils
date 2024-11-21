@@ -1,8 +1,9 @@
 mod utils;
 
-use std::{ffi::OsString, fs::{self, File}, io::{Read, Write}, path::PathBuf, str::FromStr, sync::LazyLock};
+use std::{fs, io::{Cursor, Read, Write}, sync::LazyLock};
 
-use byteorder_lite::{ReadBytesExt, LE};
+use byteorder_lite::{WriteBytesExt, ReadBytesExt, LE};
+use serde::{Deserialize, Serialize};
 use utils::Encoding;
 
 static OPCODES: LazyLock<Vec<String>> = LazyLock::new(|| fs::read_to_string("LBEE_opcodes")
@@ -13,78 +14,40 @@ static OPCODES: LazyLock<Vec<String>> = LazyLock::new(|| fs::read_to_string("LBE
 );
 
 fn main() {
-    let scripts_path = PathBuf::from("LBEE_SCRIPT_steam");
-
-    for script in fs::read_dir(scripts_path).unwrap() {
-        let script = script.unwrap();
-        let filename = script.file_name();
-        let filename = filename.to_string_lossy();
-        if !script.file_type().unwrap().is_file() {
-            continue;
-        } else if filename.contains("8500") || filename.contains("8501") {
-            continue;
-        } else if filename.starts_with("_") {
-            continue;
-        }
-
-        let mut script_file = File::open(&script.path()).unwrap();
-
-        println!("Start parsing {:?}", script.file_name());
-        let script_len = script_file.metadata().unwrap().len();
-        let script = parse_script(
-            &mut script_file,
-            script.file_name().to_str().unwrap(),
-            script_len
-        );
-
-        let mut out_file = File::create(format!("LBEE_SCRIPT_listing/{}_OPCODES.txt", filename)).unwrap();
-        for c in script.opcodes {
-            out_file.write_all(format!("{:>5}", c.position).as_bytes()).unwrap();
-            out_file.write_all(format!("{:>12}: ", c.string).as_bytes()).unwrap();
-            if let Some(o) = c.opcode_specifics {
-                if o == SpecificOpcode::Unknown {
-                    out_file.write_all(format!("{:02X?}", c.param_bytes).as_bytes()).unwrap();
-                } else {
-                    out_file.write_all(format!("{:?}", o).as_bytes()).unwrap();
-                }
-            } else if let Some(r) = c.fixed_param {
-                out_file.write_all(format!("{:?}", r).as_bytes()).unwrap();
-            }
-            out_file.write_all(b"\n").unwrap();
-        }
-    }
-    println!("Done!");
+    let mut script_file = fs::File::open("SEEN0513").unwrap();
+    let script_len = script_file.metadata().unwrap().len();
+    let script = decode_script(&mut script_file, script_len);
 
     /*
     for c in script.opcodes {
         print!("{:>5}", c.position);
         print!("{:>12}: ", c.string);
         if let Some(o) = c.opcode_specifics {
-            if o == SpecificOpcode::Unknown {
-                print!("{:02X?}", c.param_bytes);
-            } else {
-                print!("{:?}", o);
-            }
+            print!("{}", serde_json::ser::to_string(&o).unwrap());
         } else if let Some(r) = c.fixed_param {
             print!("{:?}", r);
         }
         println!();
     }
     */
+
+    //println!("{}", serde_json::ser::to_string_pretty(&script).unwrap());
+
+    let mut rewrite_script = fs::File::create("SEEN0513-rewritten").unwrap();
+    write_script(&mut rewrite_script, script).unwrap();
+    println!("Wrote out successfully");
 }
 
-fn parse_script<S: Read>(script_stream: &mut S, name: &str, length: u64) -> Script {
+fn decode_script<S: Read>(script_stream: &mut S, length: u64) -> Script {
     let mut opcodes = Vec::new();
     let mut offset = 0;
     let mut i = 0;
     let mut pos = 0;
     while offset < length as usize {
         // Read all base info
-        let (length, number, flag) = (
-            script_stream.read_u16::<LE>().unwrap() as usize,
-            script_stream.read_u8().unwrap(),
-            script_stream.read_u8().unwrap()
-        );
+        let length = script_stream.read_u16::<LE>().unwrap() as usize;
+        let number = script_stream.read_u8().unwrap();
+        let flag = script_stream.read_u8().unwrap();
         let string = OPCODES[number as usize].clone();
 
         offset += 4;
@@ -102,20 +65,20 @@ fn parse_script<S: Read>(script_stream: &mut S, name: &str, length: u64) -> Scri
             None
         };
 
-        let mut fixed_param = None;
+        let mut fixed_param = Vec::new();
         let param_bytes = match flag {
             0 => raw_bytes.clone(),
             f if f < 2 => {
-                fixed_param = Some(vec![
+                fixed_param = vec![
                     u16::from_le_bytes(raw_bytes[..2].try_into().unwrap()),
-                ]);
+                ];
                 raw_bytes[2..].to_vec()
             }
             _ => {
-                fixed_param = Some(vec![
+                fixed_param = vec![
                     u16::from_le_bytes(raw_bytes[..2].try_into().unwrap()),
                     u16::from_le_bytes(raw_bytes[2..4].try_into().unwrap()),
-                ]);
+                ];
                 raw_bytes[4..].to_vec()
             }
         };
@@ -142,20 +105,46 @@ fn parse_script<S: Read>(script_stream: &mut S, name: &str, length: u64) -> Scri
     }
 
     Script {
-        name: name.to_string(),
         code_count: opcodes.len(),
         opcodes,
     }
 }
 
+fn write_script<W: Write>(script_output: &mut W, script: Script) -> Result<(), ()> {
+    let mut position = 0;
+    for opcode in script.opcodes {
+        let mut total = 0;
+        script_output.write_u16::<LE>(opcode.length as u16).unwrap();
+        script_output.write_u8(OPCODES.iter().position(|l| *l == opcode.string).unwrap() as u8).unwrap();
+        script_output.write_u8(opcode.flag).unwrap();
+        total += 4;
+
+        for p in opcode.fixed_param {
+            script_output.write_u16::<LE>(p).unwrap();
+            total += 2;
+        }
+
+        script_output.write_all(&opcode.param_bytes).unwrap();
+        total += opcode.param_bytes.len();
+        if (position + total) % 2 != 0 {
+            script_output.write_u8(0).unwrap();
+            total += 1;
+        }
+        position += total;
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize)]
 struct Script {
-    name: String,
     opcodes: Vec<Opcode>,
     code_count: usize,
 }
 
 #[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize)]
 struct Opcode {
     index: usize,
     position: usize,
@@ -164,12 +153,13 @@ struct Opcode {
     string: String,
 
     flag: u8,
-    fixed_param: Option<Vec<u16>>,
+    fixed_param: Vec<u16>,
     param_bytes: Vec<u8>,
     opcode_specifics: Option<SpecificOpcode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
 enum SpecificOpcode {
     Message {
         voice_id: u16,
@@ -256,7 +246,7 @@ enum SpecificOpcode {
         bgm_id: u32,
         arg2: Option<u16>,
     },
-    Unknown,
+    Unknown(Vec<u8>),
 }
 
 impl SpecificOpcode {
@@ -265,86 +255,88 @@ impl SpecificOpcode {
             return None
         }
 
+        let mut cursor_param = Cursor::new(param_bytes);
+
         Some(match opcode_str {
-            "MESSAGE" => Self::parse_message(param_bytes),
-            "SAYAVOICETEXT" => Self::parse_sayavoicetext(param_bytes),
-            "SELECT" => Self::parse_select(param_bytes),
-            "TASK" => Self::parse_task(param_bytes),
+            "MESSAGE" => Self::decode_message(&mut cursor_param),
+            "SAYAVOICETEXT" => Self::decode_sayavoicetext(&mut cursor_param),
+            "SELECT" => Self::decode_select(&mut cursor_param),
+            "TASK" => Self::decode_task(&mut cursor_param),
 
-            "ADD" => Self::parse_add(param_bytes),
-            "EQUN" => Self::parse_equn(param_bytes),
+            "ADD" => Self::decode_add(&mut cursor_param),
+            "EQUN" => Self::decode_equn(&mut cursor_param),
 
-            "RANDOM" => Self::parse_random(param_bytes),
-            "IFY" => Self::parse_ifn_ify(param_bytes, false),
-            "IFN" => Self::parse_ifn_ify(param_bytes, true),
-            "JUMP" => Self::parse_jump(param_bytes),
-            "GOTO" => Self::parse_goto(param_bytes),
-            "GOSUB" => Self::parse_gosub(param_bytes),
-            "FARCALL" => Self::parse_farcall(param_bytes),
-            "VARSTR_SET" => Self::parse_varstr_set(param_bytes),
+            "RANDOM" => Self::decode_random(&mut cursor_param),
+            "IFY" => Self::decode_ifn_ify(&mut cursor_param, false),
+            "IFN" => Self::decode_ifn_ify(&mut cursor_param, true),
+            "JUMP" => Self::decode_jump(&mut cursor_param),
+            "GOTO" => Self::decode_goto(&mut cursor_param),
+            "GOSUB" => Self::decode_gosub(&mut cursor_param),
+            "FARCALL" => Self::decode_farcall(&mut cursor_param),
+            "VARSTR_SET" => Self::decode_varstr_set(&mut cursor_param),
 
-            "IMAGELOAD" => Self::parse_imageload(param_bytes),
-            "BGM" => Self::parse_bgm(param_bytes),
-            _ => Self::Unknown
+            "IMAGELOAD" => Self::decode_imageload(&mut cursor_param),
+            "BGM" => Self::decode_bgm(&mut cursor_param),
+            _ => Self::Unknown(param_bytes.to_vec())
         })
     }
 
-    fn parse_message(param_bytes: &[u8]) -> Self {
-        let (mut offset, voice_id) = utils::get_u16(param_bytes, 0).unwrap();
+    fn decode_message<R: Read>(param_bytes: &mut R) -> Self {
+        let voice_id = param_bytes.read_u16::<LE>().unwrap();
 
         // TODO: This will need to change per-game based on the number of
         // languages and their encodings
         let mut messages = Vec::new();
         for _ in 0..2 {
-            let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+            let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
             messages.push(string);
-            offset = o;
         }
+
+        let mut end = Vec::new();
+        param_bytes.read_to_end(&mut end).unwrap();
 
         Self::Message {
             voice_id,
             messages,
-            end: param_bytes[offset..].to_vec()
+            end,
         }
     }
 
-    fn parse_add(param_bytes: &[u8]) -> Self {
-        let (offset, var1) = utils::get_u16(param_bytes, 0).unwrap();
-        let (_, expr) = utils::get_string(param_bytes, offset, Encoding::ShiftJIS, None).unwrap();
+    fn encode_message(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn decode_add<R: Read>(param_bytes: &mut R) -> Self {
+        let var1 = param_bytes.read_u16::<LE>().unwrap();
+        let expr = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
 
         Self::Add { var1, expr }
     }
 
-    fn parse_equn(param_bytes: &[u8]) -> Self {
-        let (offset, var1) = utils::get_u16(param_bytes, 0).unwrap();
-
-        let mut value = None;
-        if offset < param_bytes.len() {
-            let (_, v) = utils::get_u16(param_bytes, offset).unwrap();
-            value = Some(v);
-        }
+    fn decode_equn<R: Read>(param_bytes: &mut R) -> Self {
+        let var1 = param_bytes.read_u16::<LE>().unwrap();
+        let value = param_bytes.read_u16::<LE>().ok();
 
         Self::EquN { var1, value }
     }
 
-    fn parse_select(param_bytes: &[u8]) -> Self {
-        let (offset, var_id) = utils::get_u16(param_bytes, 0).unwrap();
-        let (offset, var0) = utils::get_u16(param_bytes, offset).unwrap();
-        let (offset, var1) = utils::get_u16(param_bytes, offset).unwrap();
-        let (mut offset, var2) = utils::get_u16(param_bytes, offset).unwrap();
+    fn decode_select<R: Read>(param_bytes: &mut R) -> Self {
+        let var_id = param_bytes.read_u16::<LE>().unwrap();
+        let var0 = param_bytes.read_u16::<LE>().unwrap();
+        let var1 = param_bytes.read_u16::<LE>().unwrap();
+        let var2 = param_bytes.read_u16::<LE>().unwrap();
 
         // TODO: This will need to change per-game based on the number of
         // languages and their encodings
         let mut messages = Vec::new();
         for _ in 0..2 {
-            let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+            let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
             messages.push(string);
-            offset = o;
         }
 
-        let (offset, var3) = utils::get_u16(param_bytes, offset).unwrap();
-        let (offset, var4) = utils::get_u16(param_bytes, offset).unwrap();
-        let (_, var5) = utils::get_u16(param_bytes, offset).unwrap();
+        let var3 = param_bytes.read_u16::<LE>().unwrap();
+        let var4 = param_bytes.read_u16::<LE>().unwrap();
+        let var5 = param_bytes.read_u16::<LE>().unwrap();
 
         Self::Select {
             var_id,
@@ -358,17 +350,17 @@ impl SpecificOpcode {
         }
     }
 
-    fn parse_random(param_bytes: &[u8]) -> Self {
-        let (offset, var1) = utils::get_u16(param_bytes, 0).unwrap();
-        let (offset, rnd_from) = utils::get_string(param_bytes, offset, Encoding::ShiftJIS, None).unwrap();
-        let (_, rnd_to) = utils::get_string(param_bytes, offset, Encoding::ShiftJIS, None).unwrap();
+    fn decode_random<R: Read>(param_bytes: &mut R) -> Self {
+        let var1 = param_bytes.read_u16::<LE>().unwrap();
+        let rnd_from = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
+        let rnd_to = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
 
         Self::Random { var1, rnd_from, rnd_to }
     }
 
-    fn parse_ifn_ify(param_bytes: &[u8], ifn: bool) -> Self {
-        let (offset, condition) = utils::get_string(param_bytes, 0, Encoding::ShiftJIS, None).unwrap();
-        let (_, jump_pos) = utils::get_u32(param_bytes, offset).unwrap();
+    fn decode_ifn_ify<R: Read>(param_bytes: &mut R, ifn: bool) -> Self {
+        let condition = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
+        let jump_pos = param_bytes.read_u32::<LE>().unwrap();
 
         if ifn {
             Self::IfN { condition, jump_pos }
@@ -377,35 +369,25 @@ impl SpecificOpcode {
         }
     }
 
-    fn parse_jump(param_bytes: &[u8]) -> Self {
-        let (offset, filename) = utils::get_string(param_bytes, 0, Encoding::ShiftJIS, None).unwrap();
+    fn decode_jump<R: Read>(param_bytes: &mut R) -> Self {
+        let filename = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
 
-        let jump_pos = if param_bytes.len() > offset {
-            let (_, j) = utils::get_u32(param_bytes, offset).unwrap();
-            Some(j)
-        } else {
-            None
-        };
+        let jump_pos = param_bytes.read_u32::<LE>().ok();
 
         Self::Jump { filename, jump_pos }
     }
 
-    fn parse_imageload(param_bytes: &[u8]) -> Self {
-        let (offset, mode) = utils::get_u16(param_bytes, 0).unwrap();
-        let (mut offset, image_id) = utils::get_u16(param_bytes, offset).unwrap();
+    fn decode_imageload<R: Read>(param_bytes: &mut R) -> Self {
+        let mode = param_bytes.read_u16::<LE>().unwrap();
+        let image_id = param_bytes.read_u16::<LE>().unwrap();
 
-        let mut var1 = None;
-        let mut pos_x = None;
-        let mut pos_y = None;
-        if mode != 0 && mode != 8 && param_bytes.len() > offset {
-            let var1_2 = utils::get_u16(param_bytes, offset).unwrap();
-            var1 = Some(var1_2.1);
-            let pos_x_2 = utils::get_u16(param_bytes, var1_2.0).unwrap();
-            pos_x = Some(pos_x_2.1);
-            let pos_y_2 = utils::get_u16(param_bytes, pos_x_2.0).unwrap();
-            pos_y = Some(pos_y_2.1);
-            offset = pos_y_2.0;
-        }
+        // These will only be read if there is anything to be read
+        let var1 = param_bytes.read_u16::<LE>().ok();
+        let pos_x = param_bytes.read_u16::<LE>().ok();
+        let pos_y = param_bytes.read_u16::<LE>().ok();
+
+        let mut end = Vec::new();
+        param_bytes.read_to_end(&mut end).unwrap();
 
         Self::ImageLoad {
             mode,
@@ -413,48 +395,62 @@ impl SpecificOpcode {
             var1,
             pos_x,
             pos_y,
-            end: param_bytes[offset..].to_vec(),
+            end,
         }
     }
 
-    fn parse_goto(param_bytes: &[u8]) -> Self {
-        let (_, jump_pos) = utils::get_u32(param_bytes, 0).unwrap();
+    fn decode_goto<R: Read>(param_bytes: &mut R) -> Self {
+        let jump_pos = param_bytes.read_u32::<LE>().unwrap();
 
         Self::GoTo { jump_pos }
     }
 
-    fn parse_gosub(param_bytes: &[u8]) -> Self {
-        let (offset, arg1) = utils::get_u16(param_bytes, 0).unwrap();
-        let (offset, jump_pos) = utils::get_u32(param_bytes, offset).unwrap();
+    fn decode_gosub<R: Read>(param_bytes: &mut R) -> Self {
+        let arg1 = param_bytes.read_u16::<LE>().unwrap();
+        let jump_pos = param_bytes.read_u32::<LE>().unwrap();
 
-        Self::GoSub { arg1, jump_pos, end: param_bytes[offset..].to_vec() }
+        let mut end = Vec::new();
+        param_bytes.read_to_end(&mut end).unwrap();
+
+        Self::GoSub {
+            arg1,
+            jump_pos,
+            end,
+        }
     }
 
-    fn parse_varstr_set(param_bytes: &[u8]) -> Self {
-        let (offset, varstr_id) = utils::get_u16(param_bytes, 0).unwrap();
-        let (_, varstr_str) = utils::get_string(param_bytes, offset, Encoding::ShiftJIS, None).unwrap();
+    fn decode_varstr_set<R: Read>(param_bytes: &mut R) -> Self {
+        let varstr_id = param_bytes.read_u16::<LE>().unwrap();
+        let varstr_str = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
 
         Self::VarStrSet { varstr_id, varstr_str }
     }
 
-    fn parse_farcall(param_bytes: &[u8]) -> Self {
-        let (offset, index) = utils::get_u16(param_bytes, 0).unwrap();
-        let (offset, filename) = utils::get_string(param_bytes, offset, Encoding::ShiftJIS, None).unwrap();
-        let (offset, jump_pos) = utils::get_u32(param_bytes, offset).unwrap();
+    fn decode_farcall<R: Read>(param_bytes: &mut R) -> Self {
+        let index = param_bytes.read_u16::<LE>().unwrap();
+        let filename = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();
+        let jump_pos = param_bytes.read_u32::<LE>().unwrap();
 
-        Self::FarCall { index, filename, jump_pos, end: param_bytes[offset..].to_vec() }
+        let mut end = Vec::new();
+        param_bytes.read_to_end(&mut end).unwrap();
+
+        Self::FarCall {
+            index,
+            filename,
+            jump_pos,
+            end,
+        }
     }
 
-    fn parse_sayavoicetext(param_bytes: &[u8]) -> Self {
-        let (mut offset, voice_id) = utils::get_u16(param_bytes, 0).unwrap();
+    fn decode_sayavoicetext<R: Read>(param_bytes: &mut R) -> Self {
+        let voice_id = param_bytes.read_u16::<LE>().unwrap();
 
         // TODO: This will need to change per-game based on the number of
         // languages and their encodings
         let mut messages = Vec::new();
         for _ in 0..2 {
-            let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+            let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
             messages.push(string);
-            offset = o;
         }
 
         Self::SayAVoiceText {
@@ -463,15 +459,11 @@ impl SpecificOpcode {
         }
     }
 
-    fn parse_bgm(param_bytes: &[u8]) -> Self {
+    fn decode_bgm<R: Read>(param_bytes: &mut R) -> Self {
         // TODO: invesigate the accuracy of this
-        let (offset, bgm_id) = utils::get_u32(param_bytes, 0).unwrap();
+        let bgm_id = param_bytes.read_u32::<LE>().unwrap();
 
-        let arg2 = if bgm_id == 0 {
-            Some(utils::get_u16(param_bytes, offset).unwrap().1)
-        } else {
-            None
-        };
+        let arg2 = param_bytes.read_u16::<LE>().ok();
 
         Self::Bgm {
             bgm_id,
@@ -479,8 +471,8 @@ impl SpecificOpcode {
         }
     }
 
-    fn parse_task(param_bytes: &[u8]) -> Self {
-        let (offset, task_type) = utils::get_u16(param_bytes, 0).unwrap();
+    fn decode_task<R: Read>(param_bytes: &mut R) -> Self {
+        let task_type = param_bytes.read_u16::<LE>().unwrap();
 
         let mut var1 = None;
         let mut var2 = None;
@@ -490,109 +482,94 @@ impl SpecificOpcode {
         let mut message_2 = None;
         let raw_args: Option<Vec<u8>> = None;
 
-        let abort_task = Self::Task {
-            task_type,
-            var1,
-            var2,
-            var3,
-            var4,
-            message_1: message_1.clone(),
-            message_2: message_2.clone(),
-            raw_args: Some(param_bytes.to_vec())
-        };
-
-        if param_bytes.len() <= offset {
-            return abort_task;
+        if false {
+            return Self::Task { task_type, var1, var2, var3, var4, message_1, message_2, raw_args };
         }
 
         match task_type {
             4 => {
-                let (offset, v1) = utils::get_u16(param_bytes, offset).unwrap();
-                var1 = Some(v1);
-                if param_bytes.len() <= offset {
-                    return abort_task;
+                let var1 = param_bytes.read_u16::<LE>().ok();
+
+                if false {
+                    return Self::Task { task_type, var1, var2, var3, var4, message_1, message_2, raw_args };
                 }
 
-                if [0, 4, 5].contains(&v1) {
-                    let (mut offset, v2) = utils::get_u16(param_bytes, offset).unwrap();
-                    var2 = Some(v2);
+                if [0, 4, 5].contains(&var1.unwrap()) {
+                    var2 = param_bytes.read_u16::<LE>().ok();
 
                     let mut messages = Vec::new();
                     for _ in 0..2 {
-                        let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                        let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                         messages.push(string);
-                        offset = o;
                     }
                     message_1 = Some(messages);
-                } else if v1 == 1 {
-                    let (offset, v2) = utils::get_u16(param_bytes, offset).unwrap();
-                    var2 = Some(v2);
-                    let (offset, v3) = utils::get_u16(param_bytes, offset).unwrap();
-                    var3 = Some(v3);
-                    let (mut offset, v4) = utils::get_u16(param_bytes, offset).unwrap();
-                    var4 = Some(v4);
+                } else if var1.unwrap() == 1 {
+                    var2 = param_bytes.read_u16::<LE>().ok();
+                    var3 = param_bytes.read_u16::<LE>().ok();
+                    var4 = param_bytes.read_u16::<LE>().ok();
 
                     // Get first set of messages
                     let mut messages = Vec::new();
                     for _ in 0..2 {
-                        let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                        let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                         messages.push(string);
-                        offset = o;
                     }
                     message_1 = Some(messages);
 
                     // Get second set of messages
                     let mut messages = Vec::new();
                     for _ in 0..2 {
-                        let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                        let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                         messages.push(string);
-                        offset = o;
                     }
                     message_2 = Some(messages);
-                } else if v1 == 6 {
-                    let (offset, v2) = utils::get_u16(param_bytes, offset).unwrap();
-                    var2 = Some(v2);
-                    let (mut offset, v3) = utils::get_u16(param_bytes, offset).unwrap();
-                    var3 = Some(v3);
+                } else if var1.unwrap() == 6 {
+                    var2 = param_bytes.read_u16::<LE>().ok();
+                    var3 = param_bytes.read_u16::<LE>().ok();
 
                     let mut messages = Vec::new();
                     for _ in 0..2 {
-                        let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                        let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                         messages.push(string);
-                        offset = o;
                     }
                     message_1 = Some(messages);
                 } else {
-                    return abort_task;
+                    return Self::Task { task_type, var1, var2, var3, var4, message_1, message_2, raw_args };
                 }
             }
             54 => {
-                let (_, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                 message_1 = Some(vec![string]);
             }
             69 => {
-                let (mut offset, v1) = utils::get_u16(param_bytes, offset).unwrap();
-                var1 = Some(v1);
+                var1 = param_bytes.read_u16::<LE>().ok();
 
                 // Get first set of messages
                 let mut messages = Vec::new();
                 for _ in 0..2 {
-                    let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                    let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                     messages.push(string);
-                    offset = o;
                 }
                 message_1 = Some(messages);
 
                 // Get second set of messages
                 let mut messages = Vec::new();
                 for _ in 0..2 {
-                    let (o, string) = utils::get_string(param_bytes, offset, Encoding::UTF16, None).unwrap();
+                    let string = utils::decode_string_v1(param_bytes, Encoding::UTF16).unwrap();
                     messages.push(string);
-                    offset = o;
                 }
                 message_2 = Some(messages);
             }
-            _ => return abort_task
+            _ => return Self::Task {
+                task_type,
+                var1,
+                var2,
+                var3,
+                var4,
+                message_1,
+                message_2,
+                raw_args,
+            }
         }
 
         Self::Task {
