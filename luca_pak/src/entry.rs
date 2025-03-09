@@ -67,6 +67,17 @@ impl Entry {
         &self.data
     }
 
+    /// Get the byte data of an entry, but fixed to be compatible with normal things
+    pub fn cloned_bytes_fixed(&self) -> Vec<u8> {
+        match self.file_type() {
+            EntryType::OGGPAK => {
+                dbg!(self.data[15]);
+                self.data[15..].to_vec()
+            },
+            _ => self.data.clone()
+        }
+    }
+
     pub fn display_name(&self) -> String {
         let mut name = self.name().clone().unwrap_or(self.id().to_string());
         let entry_type = self.file_type();
@@ -88,6 +99,12 @@ impl Entry {
             }
         } else if self.data[0..3] == [b'M', b'V', b'T'] {
             EntryType::MVT
+        } else if self.data[0..4] == [b'R', b'I', b'F', b'F'] {
+            EntryType::WAV
+        } else if self.data[0..4] == [b'O', b'g', b'g', b'S'] {
+            EntryType::OGG
+        } else if self.data[0..6] == [b'O', b'G', b'G', b'P', b'A', b'K'] {
+            EntryType::OGGPAK
         } else {
             EntryType::Unknown
         }
@@ -96,6 +113,7 @@ impl Entry {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryType {
+    // CZ image files
     CZ0,
     CZ1,
     CZ2,
@@ -105,6 +123,14 @@ pub enum EntryType {
 
     /// An MVT video file
     MVT,
+
+    /// OGG Audio file
+    OGG,
+    /// OGGPAK Audio file
+    OGGPAK,
+
+    /// Wav Audio file
+    WAV,
 
     /// Who knows!
     Unknown,
@@ -121,6 +147,9 @@ impl EntryType {
             Self::CZ4 => ".cz4",
             Self::CZ5 => ".cz5",
             Self::MVT => ".mvt",
+            Self::OGG => ".ogg",
+            Self::OGGPAK => ".oggpak",
+            Self::WAV => ".wav",
             Self::Unknown => "",
         }
     }

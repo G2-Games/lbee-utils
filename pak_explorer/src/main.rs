@@ -2,11 +2,12 @@
 
 use colog;
 use eframe::egui::{
-    self, ColorImage, Image, TextureFilter, TextureHandle, TextureOptions, ThemePreference,
+    self, ColorImage, Image, ProgressBar, TextureFilter, TextureHandle, TextureOptions, ThemePreference
 };
+use kira::{backend::Backend, sound::static_sound::{StaticSoundData, StaticSoundHandle}, AudioManager, AudioManagerSettings, DefaultBackend, Tween};
 use log::error;
 use luca_pak::{entry::EntryType, Pak};
-use std::fs;
+use std::{fs, io::Cursor, time::Duration};
 
 fn main() -> eframe::Result {
     colog::default_builder()
@@ -18,13 +19,23 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
+    let manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings::default()).unwrap();
+
     eframe::run_native(
         "LUCA PAK Explorer",
         options,
         Box::new(|ctx| {
             let ppp = ctx.egui_ctx.pixels_per_point() * 1.5;
             ctx.egui_ctx.set_pixels_per_point(ppp);
-            Ok(Box::<PakExplorer>::default())
+            Ok(Box::new(PakExplorer {
+                open_file: None,
+                selected_entry: None,
+                image_texture: None,
+                hex_string: None,
+                audio_player: manager,
+                audio_handle: None,
+                audio_duration: None,
+            }))
         }),
     )
 }
@@ -34,17 +45,9 @@ struct PakExplorer {
     selected_entry: Option<luca_pak::entry::Entry>,
     image_texture: Option<egui::TextureHandle>,
     hex_string: Option<Vec<String>>,
-}
-
-impl Default for PakExplorer {
-    fn default() -> Self {
-        Self {
-            open_file: None,
-            selected_entry: None,
-            image_texture: None,
-            hex_string: None,
-        }
-    }
+    audio_player: AudioManager,
+    audio_handle: Option<StaticSoundHandle>,
+    audio_duration: Option<Duration>,
 }
 
 impl eframe::App for PakExplorer {
@@ -67,6 +70,13 @@ impl eframe::App for PakExplorer {
                         self.selected_entry = None;
                         self.image_texture = None;
                         self.hex_string = None;
+
+                        if let Some(a) = self.audio_handle.as_mut() {
+                            a.stop(Tween::default());
+                        }
+
+                        self.audio_handle = None;
+                        self.audio_duration = None;
                     }
                 }
                 if let Some(pak) = &self.open_file {
@@ -97,7 +107,7 @@ impl eframe::App for PakExplorer {
                 };
 
                 ui.horizontal(|ui| {
-                    egui::ComboBox::from_id_source("my-combobox")
+                    egui::ComboBox::from_id_salt("my-combobox")
                         .selected_text(selection.clone())
                         .truncate()
                         .show_ui(ui, |ui| {
@@ -112,6 +122,13 @@ impl eframe::App for PakExplorer {
                                     .clicked()
                                 {
                                     self.image_texture = None;
+
+                                    if let Some(a) = self.audio_handle.as_mut() {
+                                        a.stop(Tween::default());
+                                    }
+
+                                    self.audio_handle = None;
+                                    self.audio_duration = None;
                                 };
                             }
                         });
@@ -201,6 +218,46 @@ impl eframe::App for PakExplorer {
                                     .shrink_to_fit()
                                     .rounding(2.0),
                             )
+                        });
+                    }
+                    EntryType::OGG
+                    | EntryType::OGGPAK
+                    | EntryType::WAV => {
+                        ui.separator();
+
+                        ui.horizontal(|ui| {
+                            if ui.button("▶").clicked() && self.audio_handle.is_none() {
+                                let sound_data = StaticSoundData::from_cursor(
+                                    Cursor::new(entry.cloned_bytes_fixed())
+                                )
+                                .unwrap()
+                                .volume(-8.0);
+
+                                self.audio_duration = Some(sound_data.duration());
+                                self.audio_handle = Some(self.audio_player.play(sound_data.clone()).unwrap());
+                            }
+
+                            if ui.button("⏹").clicked() && self.audio_handle.is_some() {
+                                self.audio_handle.as_mut().unwrap().stop(Tween::default());
+                                self.audio_handle = None;
+                                self.audio_duration = None;
+                            }
+
+                            if let Some(a) = &self.audio_handle {
+                                let pos = a.position() as f32;
+
+                                ui.add(ProgressBar::new(
+                                    pos / self.audio_duration.as_ref().unwrap().as_secs_f32()
+                                ).rounding(1.0).text(format!("{:02.0}:{:02.0}", pos / 60.0, pos % 60.0)));
+
+                                if pos / self.audio_duration.as_ref().unwrap().as_secs_f32() > 0.99 {
+                                    self.audio_handle.as_mut().unwrap().stop(Tween::default());
+                                    self.audio_handle = None;
+                                    self.audio_duration = None;
+                                }
+                            }
+
+                            ctx.request_repaint_after(Duration::from_millis(50));
                         });
                     }
                     _ => {
