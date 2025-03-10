@@ -1,7 +1,7 @@
 [package]
 name = "pak_explorer"
-edition = "2021"
-version = "0.1.2"
+edition = "2024"
+version = "0.1.3"
 description = """
 A simple GUI for exploring and making modifications to LUCA System PAK files.
 """

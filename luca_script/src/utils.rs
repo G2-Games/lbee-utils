@@ -4,11 +4,13 @@ use encoding_rs::*;
 use byteorder_lite::{LE, ReadBytesExt};
 
 pub enum Encoding {
+    #[allow(dead_code)]
     UTF8,
     UTF16,
     ShiftJIS,
 }
 
+#[allow(dead_code)]
 impl Encoding {
     pub fn width(&self) -> usize {
         match self {
@@ -58,6 +60,7 @@ pub fn decode_string_v1<R: Read>(
     Ok(string)
 }
 
+#[allow(dead_code)]
 pub fn encode_string_v1(string: String, format: Encoding) -> Vec<u8> {
     match format {
         Encoding::UTF8 => string.as_bytes().to_vec(),

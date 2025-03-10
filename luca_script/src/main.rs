@@ -302,10 +302,6 @@ impl SpecificOpcode {
         }
     }
 
-    fn encode_message(&self) -> Vec<u8> {
-        todo!()
-    }
-
     fn decode_add<R: Read>(param_bytes: &mut R) -> Self {
         let var1 = param_bytes.read_u16::<LE>().unwrap();
         let expr = utils::decode_string_v1(param_bytes, Encoding::ShiftJIS).unwrap();

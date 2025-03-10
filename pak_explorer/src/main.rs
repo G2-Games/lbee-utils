@@ -1,10 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use colog;
 use eframe::egui::{
     self, ColorImage, Image, ProgressBar, TextureFilter, TextureHandle, TextureOptions, ThemePreference
 };
-use kira::{backend::Backend, sound::static_sound::{StaticSoundData, StaticSoundHandle}, AudioManager, AudioManagerSettings, DefaultBackend, Tween};
+use kira::{sound::static_sound::{StaticSoundData, StaticSoundHandle}, AudioManager, AudioManagerSettings, DefaultBackend, Tween};
 use log::error;
 use luca_pak::{entry::EntryType, Pak};
 use std::{fs, io::Cursor, time::Duration};
