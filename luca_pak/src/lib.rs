@@ -127,13 +127,14 @@ impl Pak {
         */
 
         let mut unknown_pre_data = Vec::new();
-        unknown_pre_data.push(input.read_u32::<LE>()?);
-        if header.flags.has_extra_pre_unknown() {
-            debug!("Reading unknown data extra");
-            unknown_pre_data.push(input.read_u32::<LE>()?);
+        if header.flags.extra_pre_count() > 0 {
+            debug!("Reading {} bytes of unknown data extra", header.flags.extra_pre_count() * 4);
+            for _ in 0..header.flags.extra_pre_count() {
+                unknown_pre_data.push(input.read_u32::<LE>()?);
+            }
         }
 
-        if input.stream_position()? == header.data_offset() as u64 {
+        if input.stream_position()? >= header.data_offset() as u64 {
             log::error!("Header length exceeded first data block");
             return Err(PakError::HeaderError);
         }

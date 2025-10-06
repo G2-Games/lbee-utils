@@ -74,7 +74,12 @@ impl PakFlags {
         self.0 & 0b01000000000 != 0
     }
 
-    pub fn has_extra_pre_unknown(&self) -> bool {
-        self.0 & 0b1 != 0
+    pub fn extra_pre_count(&self) -> usize {
+        match self.0 as usize & 0b111 {
+            0 => 1,
+            1 => 2,
+            2 => 4,
+            _ => 0,
+        }
     }
 }
