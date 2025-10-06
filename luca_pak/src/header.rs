@@ -66,11 +66,15 @@ pub struct PakFlags(pub u32);
 impl PakFlags {
     pub fn has_unknown_data1(&self) -> bool {
         // 0b00100000000
-        self.0 & 0x100 != 0
+        self.0 & 0b00100000000 != 0
     }
 
     pub fn has_names(&self) -> bool {
         // 0b01000000000
-        self.0 & 512 != 0
+        self.0 & 0b01000000000 != 0
+    }
+
+    pub fn has_extra_pre_unknown(&self) -> bool {
+        self.0 & 0b1 != 0
     }
 }

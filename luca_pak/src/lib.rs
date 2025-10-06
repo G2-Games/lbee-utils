@@ -106,10 +106,11 @@ impl Pak {
         }
         info!("{} entries detected", header.entry_count);
         debug!("Block size is {} bytes", header.block_size);
-        debug!("Flag bits {:#032b}", header.flags().0);
+        info!("Flag bits {:#032b}", header.flags().0);
 
         let first_offset = header.data_offset() / header.block_size();
 
+        /*
         // Read some unknown data before the data we want
         // TODO: This *must* be done differently for real, figure it out!
         let mut unknown_pre_data = Vec::new();
@@ -122,7 +123,15 @@ impl Pak {
 
             unknown_pre_data.push(unknown);
         }
-        debug!("Pre-position bytes: {}", unknown_pre_data.len());
+        info!("Pre-position bytes: {}", unknown_pre_data.len() * 4);
+        */
+
+        let mut unknown_pre_data = Vec::new();
+        unknown_pre_data.push(input.read_u32::<LE>()?);
+        if header.flags.has_extra_pre_unknown() {
+            debug!("Reading unknown data extra");
+            unknown_pre_data.push(input.read_u32::<LE>()?);
+        }
 
         if input.stream_position()? == header.data_offset() as u64 {
             log::error!("Header length exceeded first data block");
@@ -176,8 +185,9 @@ impl Pak {
         let mut entries: Vec<Entry> = Vec::new();
         for (i, offset_info) in offsets
             .iter()
-            .enumerate()
             .take(header.entry_count() as usize)
+            .filter(|e| (e.offset != 0) && (e.length != 0))
+            .enumerate()
         {
             debug!("Seeking to block {}", offset_info.offset);
             // Seek to and read the entry data
@@ -213,7 +223,7 @@ impl Pak {
             };
             entries.push(entry);
         }
-        debug!("Entry list contains {} entries", entries.len());
+        info!("Actually found {} entries", entries.len());
 
         Ok(Pak {
             subdirectory,
