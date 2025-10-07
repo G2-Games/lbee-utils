@@ -108,24 +108,6 @@ impl Pak {
         debug!("Block size is {} bytes", header.block_size);
         info!("Flag bits {:#032b}", header.flags().0);
 
-        let first_offset = header.data_offset() / header.block_size();
-
-        /*
-        // Read some unknown data before the data we want
-        // TODO: This *must* be done differently for real, figure it out!
-        let mut unknown_pre_data = Vec::new();
-        while input.stream_position()? < header.data_offset() as u64 {
-            let unknown = input.read_u32::<LE>()?;
-            if unknown == first_offset {
-                input.seek_relative(-4)?;
-                break;
-            }
-
-            unknown_pre_data.push(unknown);
-        }
-        info!("Pre-position bytes: {}", unknown_pre_data.len() * 4);
-        */
-
         let mut unknown_pre_data = Vec::new();
         if header.flags.extra_pre_count() > 0 {
             debug!("Reading {} bytes of unknown data extra", header.flags.extra_pre_count() * 4);
@@ -187,7 +169,6 @@ impl Pak {
         for (i, offset_info) in offsets
             .iter()
             .take(header.entry_count() as usize)
-            .filter(|e| (e.offset != 0) && (e.length != 0))
             .enumerate()
         {
             debug!("Seeking to block {}", offset_info.offset);
@@ -260,6 +241,7 @@ impl Pak {
 
         // Write offsets and lengths
         for entry in self.entries() {
+            dbg!(entry.offset);
             output.write_u32::<LE>(entry.offset)?;
             output.write_u32::<LE>(entry.length)?;
         }
@@ -316,13 +298,14 @@ impl Pak {
     pub fn replace(&mut self, index: usize, replacement_bytes: &[u8]) -> Result<(), PakError> {
         let block_size = self.header().block_size();
 
-        let replaced_entry;
-        if let Some(entry) = self.entries.get_mut(index) {
-            replaced_entry = entry
+        let mut replaced_entry = if let Some(entry) = self.entries().get(index) {
+            entry.clone()
         } else {
             log::error!("Entry {} not found!", index);
             return Err(PakError::IndexError);
         };
+
+        dbg!(&replaced_entry);
 
         if let Some(name) = replaced_entry.name() {
             info!("Replacing entry {}: {}", index, name);
@@ -334,17 +317,35 @@ impl Pak {
         replaced_entry.data = replacement_bytes.to_vec();
         replaced_entry.length = replaced_entry.data.len() as u32;
 
+        // If the offset is 0, ensure we move it to the correct position
+        if replaced_entry.length == 0 {
+            replaced_entry.offset = 0;
+        } else if replaced_entry.offset == 0 {
+            let mut prev_offset = 0;
+            for entry in self.entries().iter().take(index).filter(|e| e.offset > 0) {
+                prev_offset = entry.offset;
+            }
+
+            if prev_offset == 0 {
+                prev_offset = self.header().data_offset.div_euclid(self.header().block_size);
+            }
+
+            replaced_entry.offset = prev_offset;
+        }
+
         // Get the offset of the next entry based on the current one
         let mut next_offset = replaced_entry.offset + replaced_entry.length.div_ceil(block_size);
 
-        // Update the position of all subsequent entries
+        // Update the position of all subsequent entries, but not those which are 0
         let mut i = 0;
-        for entry in self.entries.iter_mut().skip(index + 1) {
+        for entry in self.entries.iter_mut().skip(index + 1).filter(|e| e.offset != 0) {
             entry.offset = next_offset;
 
             next_offset = entry.offset + entry.length.div_ceil(block_size);
             i += 1;
         }
+
+        *self.entries.get_mut(index).unwrap() = replaced_entry;
 
         info!("Aligned {} subsequent entries", i);
 

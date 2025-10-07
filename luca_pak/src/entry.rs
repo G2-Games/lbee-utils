@@ -87,6 +87,10 @@ impl Entry {
     }
 
     pub fn file_type(&self) -> EntryType {
+        if self.data.is_empty() {
+            return EntryType::Unknown
+        }
+
         if self.data[0..2] == [b'C', b'Z'] {
             match self.data[2] {
                 b'0' => EntryType::CZ0,
