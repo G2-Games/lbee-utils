@@ -37,6 +37,8 @@ jobs:
           run: |
             sudo apt-get install -y gcc-mingw-w64
             sudo apt-get install -y libasound2t64
+            sudo apt-get install -y libasound2-dev
+            sudo apt-get install -y libudev-dev
             pip install cargo-zigbuild
 
         - name: '📦 Package Windows x86_64'
@@ -103,6 +105,7 @@ jobs:
         - name: '🔄 Set up additional requirements'
           run: |
             brew install zig
+            brew install portaudio
             cargo install --locked cargo-zigbuild
 
         - name: '📦 Package MacOS Universal2'
