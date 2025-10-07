@@ -241,7 +241,6 @@ impl Pak {
 
         // Write offsets and lengths
         for entry in self.entries() {
-            dbg!(entry.offset);
             output.write_u32::<LE>(entry.offset)?;
             output.write_u32::<LE>(entry.length)?;
         }
@@ -304,8 +303,6 @@ impl Pak {
             log::error!("Entry {} not found!", index);
             return Err(PakError::IndexError);
         };
-
-        dbg!(&replaced_entry);
 
         if let Some(name) = replaced_entry.name() {
             info!("Replacing entry {}: {}", index, name);

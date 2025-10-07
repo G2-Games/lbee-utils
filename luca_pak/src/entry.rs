@@ -71,7 +71,6 @@ impl Entry {
     pub fn cloned_bytes_fixed(&self) -> Vec<u8> {
         match self.file_type() {
             EntryType::OGGPAK => {
-                dbg!(self.data[15]);
                 self.data[15..].to_vec()
             },
             _ => self.data.clone()
