@@ -1,6 +1,7 @@
 name: Publish utilities on release
 
 on:
+  workflow_dispatch:
   push:
     tags: [ 'utils-*.*.*' ]
 
