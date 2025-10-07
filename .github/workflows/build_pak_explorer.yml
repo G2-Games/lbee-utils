@@ -1,6 +1,7 @@
 name: Publish PAK Explorer on release
 
 on:
+  workflow_dispatch:
   push:
     tags: [ 'explorer-*.*.*' ]
 
