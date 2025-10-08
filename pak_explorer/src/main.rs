@@ -3,9 +3,9 @@
 use eframe::egui::{
     self, ColorImage, Image, ProgressBar, TextureFilter, TextureHandle, TextureOptions, ThemePreference
 };
-use kira::{sound::static_sound::{StaticSoundData, StaticSoundHandle}, AudioManager, AudioManagerSettings, DefaultBackend, Tween};
+use kira::{sound::{static_sound::{StaticSoundData, StaticSoundHandle}, PlaybackState}, AudioManager, AudioManagerSettings, DefaultBackend, Tween};
 use log::error;
-use luca_pak::{entry::EntryType, Pak};
+use luca_pak::{entry::{Entry, EntryType}, Pak};
 use std::{fs, io::Cursor, time::Duration};
 
 fn main() -> eframe::Result {
@@ -140,7 +140,7 @@ impl eframe::App for PakExplorer {
                 ui.centered_and_justified(|ui| ui.label("No File Opened"));
             }
 
-            if let Some(entry) = &self.selected_entry {
+            if let Some(entry) = &self.selected_entry.clone() {
                 ui.horizontal(|ui| {
                     if ui.button("Save entry").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
@@ -215,49 +215,14 @@ impl eframe::App for PakExplorer {
                                 Image::from_texture(texture)
                                     .show_loading_spinner(true)
                                     .shrink_to_fit()
-                                    .rounding(2.0),
+                                    .corner_radius(2.0),
                             )
                         });
                     }
                     EntryType::OGG
                     | EntryType::OGGPAK
                     | EntryType::WAV => {
-                        ui.separator();
-
-                        ui.horizontal(|ui| {
-                            if ui.button("▶").clicked() && self.audio_handle.is_none() {
-                                let sound_data = StaticSoundData::from_cursor(
-                                    Cursor::new(entry.cloned_bytes_fixed())
-                                )
-                                .unwrap()
-                                .volume(-8.0);
-
-                                self.audio_duration = Some(sound_data.duration());
-                                self.audio_handle = Some(self.audio_player.play(sound_data.clone()).unwrap());
-                            }
-
-                            if ui.button("⏹").clicked() && self.audio_handle.is_some() {
-                                self.audio_handle.as_mut().unwrap().stop(Tween::default());
-                                self.audio_handle = None;
-                                self.audio_duration = None;
-                            }
-
-                            if let Some(a) = &self.audio_handle {
-                                let pos = a.position() as f32;
-
-                                ui.add(ProgressBar::new(
-                                    pos / self.audio_duration.as_ref().unwrap().as_secs_f32()
-                                ).rounding(1.0).text(format!("{:02.0}:{:02.0}", pos / 60.0, pos % 60.0)));
-
-                                if pos / self.audio_duration.as_ref().unwrap().as_secs_f32() > 0.99 {
-                                    self.audio_handle.as_mut().unwrap().stop(Tween::default());
-                                    self.audio_handle = None;
-                                    self.audio_duration = None;
-                                }
-                            }
-
-                            ctx.request_repaint_after(Duration::from_millis(50));
-                        });
+                        self.music_control(ui, ctx, entry);
                     }
                     _ => {
                         ui.centered_and_justified(|ui| ui.label("No Preview Available"));
@@ -266,6 +231,77 @@ impl eframe::App for PakExplorer {
             } else if self.open_file.is_some() {
                 ui.centered_and_justified(|ui| ui.label("Select an Entry"));
             }
+        });
+    }
+}
+
+impl PakExplorer {
+    fn music_control(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, entry: &Entry) {
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            if let Some(handle) = self.audio_handle.as_mut() {
+                if handle.state() == PlaybackState::Playing && ui.button("⏸").clicked() {
+                    handle.pause(Tween::default());
+                } else if handle.state() == PlaybackState::Paused && ui.button("▶").clicked() {
+                    handle.resume(Tween::default());
+                }
+            }
+
+            if let Some(handle) = self.audio_handle.as_mut() && ui.button("🔁").clicked() {
+                let sound_data = StaticSoundData::from_cursor(
+                    Cursor::new(entry.cloned_bytes_fixed())
+                )
+                .unwrap()
+                .volume(-8.0);
+
+                handle.stop(Tween::default());
+
+                self.audio_duration = Some(sound_data.duration());
+                self.audio_handle = Some(self.audio_player.play(sound_data.clone()).unwrap());
+            }
+
+            if let Some(handle) = self.audio_handle.as_mut() && ui.button("⏹").clicked() {
+                handle.stop(Tween::default());
+                self.audio_handle = None;
+                self.audio_duration = None;
+            }
+
+            if self.audio_handle.is_none() && ui.button("▶").clicked() {
+                let sound_data = StaticSoundData::from_cursor(
+                    Cursor::new(entry.cloned_bytes_fixed())
+                )
+                .unwrap()
+                .volume(-8.0);
+
+                self.audio_duration = Some(sound_data.duration());
+                self.audio_handle = Some(self.audio_player.play(sound_data.clone()).unwrap());
+            }
+
+            let (pos, dur) = if let Some(a) = &self.audio_handle {
+                let pos = a.position() as f32;
+                let dur = self.audio_duration.as_ref().unwrap().as_secs_f32();
+
+                (pos, dur)
+            } else {
+                (0.0, 0.0)
+            };
+
+            ui.add(
+                ProgressBar::new(
+                    pos / dur
+                )
+                .corner_radius(1.0)
+                .text(
+                    format!(
+                        "{:02.0}:{:02.0} / {:02.0}:{:02.0}",
+                        pos / 60.0, pos % 60.0,
+                        dur / 60.0, dur % 60.0
+                    )
+                )
+            );
+
+            ctx.request_repaint_after(Duration::from_millis(50));
         });
     }
 }
