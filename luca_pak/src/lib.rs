@@ -317,6 +317,8 @@ impl Pak {
         // If the offset is 0, ensure we move it to the correct position
         if replaced_entry.length == 0 {
             replaced_entry.offset = 0;
+            *self.entries.get_mut(index).unwrap() = replaced_entry;
+            return Ok(());
         } else if replaced_entry.offset == 0 {
             let mut prev_offset = 0;
             for entry in self.entries().iter().take(index).filter(|e| e.offset > 0) {
