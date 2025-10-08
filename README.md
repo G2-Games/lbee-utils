@@ -13,6 +13,7 @@ Tested on the following games:
  - Harmonia Full HD Edition (2024)
  - Kanon (2024)
  - planetarian \~Snow Globe~ (Nintendo Switch) (2024)
+ - Butterfly's Poison; Blood Chains (Steam) (2023)
 
 Please test on your own games and open an issue if something isn't working.
 
