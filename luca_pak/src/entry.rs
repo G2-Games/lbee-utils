@@ -1,8 +1,5 @@
 use std::{
-    error::Error,
-    fs::File,
-    io::{BufWriter, Write},
-    path::Path,
+    error::Error, fmt::Display, fs::File, io::{BufWriter, Write}, path::Path
 };
 
 /// A single file entry in a PAK file
@@ -137,6 +134,26 @@ pub enum EntryType {
 
     /// Who knows!
     Unknown,
+}
+
+impl Display for EntryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let out_string = match self {
+            EntryType::CZ0 => "CZ0",
+            EntryType::CZ1 => "CZ1",
+            EntryType::CZ2 => "CZ2",
+            EntryType::CZ3 => "CZ3",
+            EntryType::CZ4 => "CZ4",
+            EntryType::CZ5 => "CZ5",
+            EntryType::MVT => "MVT",
+            EntryType::OGG => "OGG",
+            EntryType::OGGPAK => "OGGPAK",
+            EntryType::WAV => "WAV",
+            EntryType::Unknown => "Unknown",
+        };
+
+        write!(f, "{}", out_string)
+    }
 }
 
 impl EntryType {
