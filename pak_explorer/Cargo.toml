@@ -29,3 +29,10 @@ usvg = "0.45"
 
 [lints]
 workspace = true
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "../target/release/pak_explorer", dest = "/usr/bin/pak_explorer", mode = "755" },
+    { source = "../assets/dev.g2games.pak_explorer.desktop", dest = "/usr/share/applications/dev.g2games.pak_explorer.desktop", mode = "644" },
+    { source = "../assets/small_logo.png", dest = "/usr/share/icons/hicolor/dev.g2games.pak_explorer.png", mode = "644" },
+]

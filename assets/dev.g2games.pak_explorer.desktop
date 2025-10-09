@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+
+Name=PAK Explorer
+Exec=/usr/bin/pak_explorer
+Icon=/usr/share/icons/hicolor/dev.g2games.pak_explorer.png
+
+Comment=
+
+Categories=AudioVideo;Audio;
+Keywords=alsamixer;alsa;mixer;sound;volume;
+
+NoDisplay=false
