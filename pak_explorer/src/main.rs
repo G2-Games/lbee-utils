@@ -1,12 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui::{
+use eframe::{egui::{
     self, ColorImage, Image, ProgressBar, TextureFilter, TextureHandle, TextureOptions, ThemePreference
-};
+}, icon_data};
 use kira::{sound::static_sound::{StaticSoundData, StaticSoundHandle}, AudioManager, AudioManagerSettings, DefaultBackend, Tween};
 use log::error;
 use luca_pak::{entry::EntryType, Pak};
 use std::{fs, io::Cursor, time::Duration};
+
+const APP_ID: &str = "dev.g2games.pak_explorer";
 
 fn main() -> eframe::Result {
     colog::default_builder()
@@ -14,7 +16,11 @@ fn main() -> eframe::Result {
         .init();
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 800.0]),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1024.0, 800.0])
+            .with_icon(icon_data::from_png_bytes(include_bytes!("../../assets/small_logo.png")).unwrap())
+            .with_app_id(APP_ID),
+        persist_window: true,
         ..Default::default()
     };
 
@@ -215,7 +221,7 @@ impl eframe::App for PakExplorer {
                                 Image::from_texture(texture)
                                     .show_loading_spinner(true)
                                     .shrink_to_fit()
-                                    .rounding(2.0),
+                                    .corner_radius(2.0),
                             )
                         });
                     }
@@ -247,7 +253,7 @@ impl eframe::App for PakExplorer {
 
                                 ui.add(ProgressBar::new(
                                     pos / self.audio_duration.as_ref().unwrap().as_secs_f32()
-                                ).rounding(1.0).text(format!("{:02.0}:{:02.0}", pos / 60.0, pos % 60.0)));
+                                ).corner_radius(1.0).text(format!("{:02.0}:{:02.0}", pos / 60.0, pos % 60.0)));
 
                                 if pos / self.audio_duration.as_ref().unwrap().as_secs_f32() > 0.99 {
                                     self.audio_handle.as_mut().unwrap().stop(Tween::default());

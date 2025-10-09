@@ -3,12 +3,6 @@ use resvg::tiny_skia;
 
 const ASSET_DIR: &str = "../assets";
 
-macro_rules! p {
-    ($($tokens: tt)*) => {
-        println!("cargo::warning={}", format!($($tokens)*))
-    }
-}
-
 fn main() {
     println!("cargo:rerun-if-changed={ASSET_DIR}");
 
