@@ -58,7 +58,7 @@ fn decode_script<S: Read>(script_stream: &mut S, length: u64) -> Script {
         offset += raw_len;
 
         // Read extra align byte if alignment needed
-        if length % 2 != 0 {
+        if length.is_multiple_of(2) {
             offset += 1;
             Some(script_stream.read_u8().unwrap())
         } else {

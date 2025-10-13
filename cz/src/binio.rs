@@ -38,7 +38,7 @@ impl BitIo {
             panic!("Cannot read more than 64 bits")
         }
 
-        if bit_len % 8 == 0 && self.bit_offset == 0 {
+        if bit_len.is_multiple_of(8) && self.bit_offset == 0 {
             return self.read(bit_len / 8);
         }
 
@@ -77,7 +77,7 @@ impl BitIo {
             panic!("Cannot write more than 64 bits");
         }
 
-        if bit_len % 8 == 0 && self.bit_offset == 0 {
+        if bit_len.is_multiple_of(8) && self.bit_offset == 0 {
             self.write(data, bit_len / 8);
             return;
         }
@@ -96,7 +96,7 @@ impl BitIo {
             }
         }
 
-        self.byte_size = self.byte_offset + (self.bit_offset + 7) / 8;
+        self.byte_size = self.byte_offset + self.bit_offset.div_ceil(8);
     }
 
     pub fn write(&mut self, data: u64, byte_len: usize) {
@@ -111,6 +111,6 @@ impl BitIo {
             .copy_from_slice(&padded_slice[..byte_len]);
         self.byte_offset += byte_len;
 
-        self.byte_size = self.byte_offset + (self.bit_offset + 7) / 8;
+        self.byte_size = self.byte_offset + self.bit_offset.div_ceil(8);
     }
 }

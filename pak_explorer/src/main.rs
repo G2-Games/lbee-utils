@@ -62,8 +62,8 @@ impl eframe::App for PakExplorer {
             ctx.options_mut(|o| o.theme_preference = ThemePreference::System);
 
             ui.horizontal(|ui| {
-                if ui.button("Open file").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                if ui.button("Open file").clicked()
+                    && let Some(path) = rfd::FileDialog::new().pick_file() {
                         let pak = match Pak::open(&path) {
                             Ok(pak) => Some(pak),
                             Err(e) => {
@@ -83,17 +83,14 @@ impl eframe::App for PakExplorer {
                         self.audio_handle = None;
                         self.audio_duration = None;
                     }
-                }
-                if let Some(pak) = &self.open_file {
-                    if ui.button("Save PAK").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
+                if let Some(pak) = &self.open_file
+                    && ui.button("Save PAK").clicked()
+                        && let Some(path) = rfd::FileDialog::new()
                             .set_file_name(pak.path().file_name().unwrap().to_string_lossy())
                             .save_file()
                         {
                             pak.save(&path).unwrap();
                         }
-                    }
-                }
             });
 
             ui.separator();
@@ -148,23 +145,20 @@ impl eframe::App for PakExplorer {
 
             if let Some(entry) = &self.selected_entry {
                 ui.horizontal(|ui| {
-                    if ui.button("Save entry").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
+                    if ui.button("Save entry").clicked()
+                        && let Some(path) = rfd::FileDialog::new()
                             .set_file_name(entry.display_name())
                             .save_file()
                         {
                             entry.save(&path).unwrap();
                         }
-                    }
 
-                    if let Some(pak) = &mut self.open_file.as_mut() {
-                        if ui.button("Replace entry").clicked() {
-                            if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    if let Some(pak) = &mut self.open_file.as_mut()
+                        && ui.button("Replace entry").clicked()
+                            && let Some(path) = rfd::FileDialog::new().pick_file() {
                                 let file_bytes = fs::read(path).unwrap();
                                 pak.replace(entry.index(), &file_bytes).unwrap();
                             }
-                        }
-                    }
                 });
                 match entry.file_type() {
                     EntryType::CZ0

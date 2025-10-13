@@ -155,10 +155,8 @@ fn main() {
 
                 let search_id = if id.is_some() {
                     id
-                } else if let Ok(id) = search_name.parse::<u32>() {
-                    Some(id)
                 } else {
-                    None
+                    search_name.parse::<u32>().ok()
                 };
 
                 // Read in the replacement file to a vec
