@@ -35,6 +35,7 @@ jobs:
 
         - name: '🔄 Set up additional requirements'
           run: |
+            sudo apt-get update -y
             sudo apt-get install -y gcc-mingw-w64
             sudo apt-get install -y libasound2t64
             sudo apt-get install -y libasound2-dev
@@ -71,16 +72,6 @@ jobs:
               GITHUB_TOKEN: ${{ github.TOKEN }}
           shell: bash
 
-        - name: '📦 Package Linux aarch64'
-          run: |
-              cd ${{github.workspace}}
-              cargo zigbuild --profile production --target aarch64-unknown-linux-gnu $BINARIES
-              cp target/aarch64-unknown-linux-gnu/production/pak_explorer PAK-Explorer_Linux-Arm64
-              gh release upload ${{ github.ref_name }} PAK-Explorer_Linux-Arm64
-          env:
-              GITHUB_TOKEN: ${{ github.TOKEN }}
-          shell: bash
-
     build-mac:
         name: Build binaries for MacOS
         runs-on: macos-14
@@ -107,6 +98,16 @@ jobs:
             brew install zig
             brew install portaudio
             cargo install --locked cargo-zigbuild
+
+        - name: '🧭 Point bindgen to macOS SDK'
+          run: |
+            SDK="$(xcrun --sdk macosx --show-sdk-path)"
+            {
+              echo "SDKROOT=$SDK"
+              echo "COREAUDIO_SDK_PATH=$SDK"
+              echo "BINDGEN_EXTRA_CLANG_ARGS=-isysroot $SDK"
+            } >> "$GITHUB_ENV"
+
 
         - name: '📦 Package MacOS Universal2'
           run: |
