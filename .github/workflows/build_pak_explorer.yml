@@ -99,22 +99,24 @@ jobs:
             brew install portaudio
             cargo install --locked cargo-zigbuild
 
-        - name: '🧭 Point bindgen to macOS SDK'
-          run: |
-            SDK="$(xcrun --sdk macosx --show-sdk-path)"
-            {
-              echo "SDKROOT=$SDK"
-              echo "COREAUDIO_SDK_PATH=$SDK"
-              echo "BINDGEN_EXTRA_CLANG_ARGS=-isysroot $SDK"
-            } >> "$GITHUB_ENV"
-
-
-        - name: '📦 Package MacOS Universal2'
-          run: |
-              cd ${{github.workspace}}
-              cargo zigbuild --manifest-path "pak_explorer/Cargo.toml" --profile production --target universal2-apple-darwin $BINARIES
-              cp target/universal2-apple-darwin/production/pak_explorer PAK-Explorer_Mac-Universal
-              gh release upload ${{ github.ref_name }} PAK-Explorer_Mac-Universal
-          env:
-              GITHUB_TOKEN: ${{ github.TOKEN }}
+        - name: '📦 Build MacOS Universal2 (with SDK)'
           shell: bash
+          run: |
+            set -euxo pipefail
+            sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+            SDK="$(xcrun --sdk macosx --show-sdk-path)"
+            test -f "$SDK/System/Library/Frameworks/AudioUnit.framework/Headers/AudioUnit.h"
+
+            export SDKROOT="$SDK"
+            export COREAUDIO_SDK_PATH="$SDK"
+            export BINDGEN_EXTRA_CLANG_ARGS="-isysroot $SDK -F$SDK/System/Library/Frameworks"
+            cargo zigbuild \
+              --manifest-path "pak_explorer/Cargo.toml" \
+              --profile production \
+              --target universal2-apple-darwin $BINARIES
+        
+            cp target/universal2-apple-darwin/production/pak_explorer PAK-Explorer_Mac-Universal
+            gh release upload "${{ github.ref_name }}" PAK-Explorer_Mac-Universal
+          env:
+            GITHUB_TOKEN: ${{ github.TOKEN }}
