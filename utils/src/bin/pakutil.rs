@@ -95,7 +95,7 @@ fn main() {
                 if let Some(n) = entry.name() {
                     outpath.push(n);
                 } else {
-                    outpath.push(entry.index().to_string())
+                    outpath.push(entry.id().to_string())
                 }
                 entry.save(&outpath).unwrap();
             }
@@ -131,15 +131,17 @@ fn main() {
 
                     // Try replacing by name, if that fails, replace by parsed ID
                     if pak.replace_by_name(search_name, &rep_data).is_err() {
-                        fmt_error("Could not replace entry in PAK: Could not find name")
+                        if parsed_id.is_some() && pak.replace_by_id(parsed_id.unwrap(), &rep_data).is_err() {
+                            fmt_error("Could not replace entry in PAK: ID is invalid")
+                                .print()
+                                .unwrap()
+                        } else {
+                            continue;
+                        }
+
+                        fmt_error("Could not replace entry in PAK: Name not found")
                             .print()
-                            .unwrap()
-                    } else if parsed_id.is_some()
-                        && pak.replace_by_id(parsed_id.unwrap(), &rep_data).is_err()
-                    {
-                        fmt_error("Could not replace entry in PAK: ID is invalid")
-                            .print()
-                            .unwrap()
+                            .unwrap();
                     }
                 }
             } else {
