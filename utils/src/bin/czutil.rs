@@ -4,9 +4,7 @@ use image::ColorType;
 use lbee_utils::version;
 use owo_colors::OwoColorize;
 use std::{
-    fs,
-    path::{Path, PathBuf},
-    process::exit,
+    fs, num::ParseIntError, path::{Path, PathBuf}, process::exit
 };
 
 /// Utility to maniuplate CZ image files from the LUCA System game engine by
@@ -86,6 +84,19 @@ enum Commands {
         /// Output CZ file bit depth
         #[arg(short, long, value_name = "BIT DEPTH")]
         depth: Option<u16>,
+
+        /// Setting this flag turns off the automatic extended header
+        /// modification.
+        #[arg(short, long)]
+        no_auto_bounds: bool,
+
+        /// Set the extended header crop (ex. 1280x720)
+        #[arg(short, long, value_name = "CROP")]
+        crop: Option<String>,
+
+        /// Set the extended header bounds (ex. 1280x720)
+        #[arg(short, long, value_name = "BOUNDS")]
+        bounds: Option<String>,
     },
 }
 
@@ -192,6 +203,9 @@ fn main() {
             output,
             version,
             depth,
+            no_auto_bounds,
+            crop,
+            bounds,
         } => {
             if !input.exists() {
                 pretty_error("The input file does not exist");
@@ -202,6 +216,28 @@ fn main() {
                 pretty_error("The replacement file does not exist");
                 exit(1);
             }
+
+            let crop = if let Some(c) = crop {
+                let Ok(o) = parse_dimensions(c) else {
+                    pretty_error(&format!("\"{}\" is not a valid dimension", c));
+                    exit(1);
+                };
+
+                Some(o)
+            } else {
+                None
+            };
+
+            let bounds = if let Some(b) = bounds {
+                let Ok(o) = parse_dimensions(b) else {
+                    pretty_error(&format!("\"{}\" is not a valid dimension", b));
+                    exit(1);
+                };
+
+                Some(o)
+            } else {
+                None
+            };
 
             // If it's a batch replacement, we want directories to search
             if *batch {
@@ -237,7 +273,14 @@ fn main() {
                     final_output.push(path.file_name().unwrap());
 
                     if let Err(error) =
-                        replace_cz(&path, &final_output, &final_replacement, version, depth)
+                        replace_cz(
+                            &path,
+                            &final_output,
+                            &final_replacement,
+                            version,
+                            depth,
+                            CropBoundReplacement::default()
+                        )
                     {
                         Error::raw(
                             ErrorKind::ValueValidation,
@@ -259,7 +302,18 @@ fn main() {
                 }
 
                 // Replace the input file with the new image
-                replace_cz(&input, &output, &replacement, version, depth).unwrap();
+                replace_cz(
+                    &input,
+                    &output,
+                    &replacement,
+                    version,
+                    depth,
+                    CropBoundReplacement {
+                        auto_replace: !no_auto_bounds,
+                        crop,
+                        bounds,
+                    }
+                ).unwrap();
             }
         }
         Commands::Encode {
@@ -335,6 +389,13 @@ fn main() {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+struct CropBoundReplacement {
+    pub auto_replace: bool,
+    pub crop: Option<(u16, u16)>,
+    pub bounds: Option<(u16, u16)>,
+}
+
 /// Replace a CZ file with the bitmap of a PNG file
 fn replace_cz<P: ?Sized + AsRef<Path>>(
     input_path: &P,
@@ -342,6 +403,7 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     replacement_path: &P,
     version: &Option<u8>,
     depth: &Option<u16>,
+    crop_bound_replacement: CropBoundReplacement,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = input_path.as_ref();
     if !path.is_file() {
@@ -358,11 +420,54 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     // Open the original CZ file
     let mut cz = cz::open(&path)?;
 
+    let crop_equal = cz.extended_header().is_some_and(|e| {
+        e.crop_width == cz.header().width() && e.crop_height == cz.header().height()
+    });
+
+    let bounds_equal = cz.extended_header().is_some_and(|e| {
+        e.bounds_width == cz.header().width() && e.bounds_height == cz.header().height()
+    });
+
+    if !crop_equal {
+        println!("Crop will not be auto-modified for \"{}\"", path.to_string_lossy());
+    }
+
+    if !bounds_equal {
+        println!("Bounds will not be auto-modified for \"{}\"", path.to_string_lossy());
+    }
+
     // Set CZ header parameters and the new bitmap
     cz.header_mut().set_width(repl_img.width() as u16);
     cz.header_mut().set_height(repl_img.height() as u16);
     cz.set_bitmap(repl_img.into_raw());
     cz.clear_palette();
+
+    // If the extended header exists and the width and height are the same
+    // as the crop width and crop height, fix them to be the same.
+    let header_ref = *cz.header();
+    if let Some(ext) = cz.extended_header_mut() {
+        if crop_equal && crop_bound_replacement.auto_replace {
+            ext.crop_width = header_ref.width();
+            ext.crop_height = header_ref.height();
+        }
+
+        if bounds_equal && crop_bound_replacement.auto_replace {
+            ext.bounds_width = header_ref.width();
+            ext.bounds_height = header_ref.height();
+        }
+
+        // Replace crop
+        if let Some(c) = crop_bound_replacement.crop {
+            ext.crop_width = c.0;
+            ext.crop_height = c.1;
+        }
+
+        // Replace bounds
+        if let Some(b) = crop_bound_replacement.bounds {
+            ext.bounds_width = b.0;
+            ext.bounds_height = b.1;
+        }
+    }
 
     if let Some(depth) = depth {
         cz.header_mut().set_depth(*depth)
@@ -376,6 +481,15 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     cz.save_as_cz(&output_path.as_ref()).unwrap();
 
     Ok(())
+}
+
+fn parse_dimensions(dim: &str) -> Result<(u16, u16), ParseIntError> {
+    let mut out = [0, 0];
+    for (i, dimension) in dim.split('x').enumerate().take(2) {
+        out[i] = dimension.parse::<u16>()?;
+    }
+
+    Ok((out[0], out[1]))
 }
 
 fn pretty_error(message: &str) {

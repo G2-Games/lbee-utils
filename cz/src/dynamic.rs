@@ -256,6 +256,14 @@ impl CzFile {
         &mut self.header_common
     }
 
+    pub fn extended_header(&self) -> &Option<ExtendedHeader> {
+        &self.header_extended
+    }
+
+    pub fn extended_header_mut(&mut self) -> &mut Option<ExtendedHeader> {
+        &mut self.header_extended
+    }
+
     pub fn set_header(&mut self, header: &CommonHeader) {
         header.clone_into(&mut self.header_common)
     }
