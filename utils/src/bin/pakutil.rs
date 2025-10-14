@@ -95,7 +95,7 @@ fn main() {
                 if let Some(n) = entry.name() {
                     outpath.push(n);
                 } else {
-                    outpath.push(entry.id().to_string())
+                    outpath.push(entry.id().to_string());
                 }
                 entry.save(&outpath).unwrap();
             }
@@ -157,8 +157,10 @@ fn main() {
 
                 let search_id = if id.is_some() {
                     id
+                } else if let Some(f) = PathBuf::from(&search_name).file_name() {
+                    f.to_string_lossy().parse::<u32>().ok()
                 } else {
-                    search_name.parse::<u32>().ok()
+                    None
                 };
 
                 // Read in the replacement file to a vec
