@@ -215,7 +215,7 @@ impl CzFile {
     /// Set an [`ExtendedHeader`] to be used for the image. This header
     /// controls things like cropping and offsets in the game engine.
     pub fn with_extended_header(mut self, ext_header: ExtendedHeader) -> Self {
-        if ext_header.offset_width.is_some() {
+        if ext_header.unknown_width.is_some() {
             self.header_common.set_length(36)
         } else {
             self.header_common.set_length(28)

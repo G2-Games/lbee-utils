@@ -217,7 +217,13 @@ impl CommonHeader {
 #[derive(Debug, Clone, Copy)]
 pub struct ExtendedHeader {
     /// Unknown bytes
-    unknown_1: [u8; 5],
+    unknown_1: u8,
+
+    /// The X component of the offset
+    pub offset_x: u16,
+
+    /// The Y component of the offset
+    pub offset_y: u16,
 
     /// Width of cropped image area
     pub crop_width: u16,
@@ -232,10 +238,10 @@ pub struct ExtendedHeader {
     pub bounds_height: u16,
 
     /// Offset width
-    pub offset_width: Option<u16>,
+    pub unknown_width: Option<u16>,
 
     /// Offset height
-    pub offset_height: Option<u16>,
+    pub unknown_height: Option<u16>,
 
     unknown_2: Option<u32>,
 }
@@ -249,35 +255,36 @@ impl Default for ExtendedHeader {
 impl ExtendedHeader {
     pub fn new() -> Self {
         ExtendedHeader {
-            unknown_1: [0u8; 5],
+            unknown_1: 0,
+            offset_x: 0,
+            offset_y: 0,
             crop_width: 0,
             crop_height: 0,
             bounds_width: 0,
             bounds_height: 0,
-            offset_width: None,
-            offset_height: None,
+            unknown_width: None,
+            unknown_height: None,
             unknown_2: None,
         }
     }
 
-    pub fn with_crop(mut self, crop_width: u16, crop_height: u16) -> Self {
-        self.crop_width = crop_width;
-        self.crop_height = crop_height;
+    pub fn with_crop(mut self, crop: (u16, u16)) -> Self {
+        self.crop_width = crop.0;
+        self.crop_height = crop.1;
 
         self
     }
 
-    pub fn with_bounds(mut self, bounds_height: u16, bounds_width: u16) -> Self {
-        self.bounds_width = bounds_width;
-        self.bounds_height = bounds_height;
+    pub fn with_bounds(mut self, bounds: (u16, u16)) -> Self {
+        self.bounds_width = bounds.0;
+        self.bounds_height = bounds.1;
 
         self
     }
 
-    pub fn with_offset(mut self, offset_width: u16, offset_height: u16) -> Self {
-        self.offset_width = Some(offset_width);
-        self.offset_height = Some(offset_height);
-        self.unknown_2 = Some(0);
+    pub fn with_offset(mut self, offset: (u16, u16)) -> Self {
+        self.offset_x = offset.0;
+        self.offset_y = offset.1;
 
         self
     }
@@ -286,8 +293,10 @@ impl ExtendedHeader {
         input: &mut T,
         common_header: &CommonHeader,
     ) -> Result<Self, CzError> {
-        let mut unknown_1 = [0u8; 5];
-        input.read_exact(&mut unknown_1)?;
+        let unknown_1 = input.read_u8()?;
+
+        let offset_x = input.read_u16::<LE>()?;
+        let offset_y = input.read_u16::<LE>()?;
 
         let crop_width = input.read_u16::<LE>()?;
         let crop_height = input.read_u16::<LE>()?;
@@ -308,29 +317,34 @@ impl ExtendedHeader {
         Ok(Self {
             unknown_1,
 
+            offset_x,
+            offset_y,
+
             crop_width,
             crop_height,
 
             bounds_width,
             bounds_height,
 
-            offset_width,
-            offset_height,
+            unknown_width: offset_width,
+            unknown_height: offset_height,
 
             unknown_2,
         })
     }
 
     pub fn write_into<T: Write>(&self, output: &mut T) -> Result<(), io::Error> {
-        output.write_all(&self.unknown_1)?;
+        output.write_u8(self.unknown_1)?;
+        output.write_u16::<LE>(self.offset_x)?;
+        output.write_u16::<LE>(self.offset_y)?;
         output.write_u16::<LE>(self.crop_width)?;
         output.write_u16::<LE>(self.crop_height)?;
         output.write_u16::<LE>(self.bounds_width)?;
         output.write_u16::<LE>(self.bounds_height)?;
 
-        if self.offset_width.is_some() {
-            output.write_u16::<LE>(self.offset_width.unwrap())?;
-            output.write_u16::<LE>(self.offset_height.unwrap())?;
+        if self.unknown_width.is_some() {
+            output.write_u16::<LE>(self.unknown_width.unwrap())?;
+            output.write_u16::<LE>(self.unknown_height.unwrap())?;
             output.write_u32::<LE>(self.unknown_2.unwrap())?;
         }
 

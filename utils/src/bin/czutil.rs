@@ -1,5 +1,5 @@
-use clap::{error::ErrorKind, Error, Parser, Subcommand};
-use cz::{common::CzVersion, CzFile};
+use clap::{error::ErrorKind, ArgAction, Error, Parser, Subcommand};
+use cz::{common::{CzVersion, ExtendedHeader}, CzFile};
 use image::ColorType;
 use lbee_utils::version;
 use owo_colors::OwoColorize;
@@ -56,6 +56,18 @@ enum Commands {
         /// Output CZ file bit depth
         #[arg(short, long, value_name = "CZ BIT DEPTH")]
         depth: Option<u16>,
+
+        /// Set the extended header crop (ex. 1280x720)
+        #[arg(long, value_name = "CROP")]
+        crop: Option<String>,
+
+        /// Set the extended header bounds (ex. 1280x720)
+        #[arg(long, value_name = "BOUNDS")]
+        bounds: Option<String>,
+
+        /// Set the extended header offset (ex. 82x73)
+        #[arg(short, long, value_name = "OFFSET")]
+        offset: Option<String>,
     },
 
     /// Replace an existing CZ file's image data
@@ -85,18 +97,25 @@ enum Commands {
         #[arg(short, long, value_name = "BIT DEPTH")]
         depth: Option<u16>,
 
-        /// Setting this flag turns off the automatic extended header
-        /// modification.
-        #[arg(short, long)]
+        /// Do not clear and regenerate the palette, which causes issues with masks.
+        #[arg(long, action = ArgAction::SetFalse)]
+        no_clear_palette: bool,
+
+        /// Do not automatically change crop and bounds metadata.
+        #[arg(long, action = ArgAction::SetFalse)]
         no_auto_bounds: bool,
 
         /// Set the extended header crop (ex. 1280x720)
-        #[arg(short, long, value_name = "CROP")]
+        #[arg(long, value_name = "CROP")]
         crop: Option<String>,
 
         /// Set the extended header bounds (ex. 1280x720)
-        #[arg(short, long, value_name = "BOUNDS")]
+        #[arg(long, value_name = "BOUNDS")]
         bounds: Option<String>,
+
+        /// Set the extended header offset (ex. 82x73)
+        #[arg(short, long, value_name = "OFFSET")]
+        offset: Option<String>,
     },
 }
 
@@ -203,9 +222,11 @@ fn main() {
             output,
             version,
             depth,
+            no_clear_palette,
             no_auto_bounds,
             crop,
             bounds,
+            offset,
         } => {
             if !input.exists() {
                 pretty_error("The input file does not exist");
@@ -217,26 +238,19 @@ fn main() {
                 exit(1);
             }
 
-            let crop = if let Some(c) = crop {
-                let Ok(o) = parse_dimensions(c) else {
-                    pretty_error(&format!("\"{}\" is not a valid dimension", c));
-                    exit(1);
-                };
-
-                Some(o)
-            } else {
-                None
+            let Ok(crop) = parse_dimensions(crop) else {
+                pretty_error(&format!("\"{:?}\" is not a valid dimension", crop));
+                exit(1);
             };
 
-            let bounds = if let Some(b) = bounds {
-                let Ok(o) = parse_dimensions(b) else {
-                    pretty_error(&format!("\"{}\" is not a valid dimension", b));
-                    exit(1);
-                };
+            let Ok(bounds) = parse_dimensions(bounds) else {
+                pretty_error(&format!("\"{:?}\" is not a valid dimension", bounds));
+                exit(1);
+            };
 
-                Some(o)
-            } else {
-                None
+            let Ok(offset) = parse_dimensions(offset) else {
+                pretty_error(&format!("\"{:?}\" is not a valid offset", offset));
+                exit(1);
             };
 
             // If it's a batch replacement, we want directories to search
@@ -279,7 +293,11 @@ fn main() {
                             &final_replacement,
                             version,
                             depth,
-                            CropBoundReplacement::default()
+                            *no_clear_palette,
+                            CropBoundReplacement {
+                                auto_replace: *no_auto_bounds,
+                                ..Default::default()
+                            }
                         )
                     {
                         Error::raw(
@@ -308,10 +326,12 @@ fn main() {
                     &replacement,
                     version,
                     depth,
+                    *no_clear_palette,
                     CropBoundReplacement {
-                        auto_replace: !no_auto_bounds,
+                        auto_replace: *no_auto_bounds,
                         crop,
                         bounds,
+                        offset,
                     }
                 ).unwrap();
             }
@@ -321,11 +341,29 @@ fn main() {
             output,
             version,
             depth,
+            crop,
+            bounds,
+            offset,
         } => {
             if !input.exists() {
                 pretty_error("The original file provided does not exist");
                 exit(1);
             }
+
+            let Ok(crop) = parse_dimensions(crop) else {
+                pretty_error(&format!("\"{:?}\" is not a valid dimension", crop));
+                exit(1);
+            };
+
+            let Ok(bounds) = parse_dimensions(bounds) else {
+                pretty_error(&format!("\"{:?}\" is not a valid dimension", bounds));
+                exit(1);
+            };
+
+            let Ok(offset) = parse_dimensions(offset) else {
+                pretty_error(&format!("\"{:?}\" is not a valid offset", offset));
+                exit(1);
+            };
 
             let version = if let Some(v) = version {
                 match CzVersion::try_from(*v) {
@@ -372,6 +410,8 @@ fn main() {
                 image.height() as u16,
                 image.to_rgba8().into_vec(),
             );
+
+            // Set the bit-depth of the image
             if let Some(d) = *depth {
                 if !(d == 8 || d == 24 || d == 32) {
                     pretty_error(&format!(
@@ -384,6 +424,30 @@ fn main() {
             } else {
                 cz.header_mut().set_depth(image_depth.bits_per_pixel());
             }
+
+            let cz = if crop.is_some() || bounds.is_some() || offset.is_some() {
+                let mut ext_header = ExtendedHeader::new();
+
+                if let Some(c) = crop {
+                    ext_header.crop_width = c.0;
+                    ext_header.crop_height = c.1;
+                }
+
+                if let Some(b) = bounds {
+                    ext_header.bounds_width = b.0;
+                    ext_header.bounds_height = b.1;
+                }
+
+                if let Some(o) = offset {
+                    ext_header.offset_x = o.0;
+                    ext_header.offset_y = o.1;
+                }
+
+                cz.with_extended_header(ext_header)
+            } else {
+                cz
+            };
+
             cz.save_as_cz(output).expect("Saving CZ file failed");
         }
     }
@@ -394,6 +458,7 @@ struct CropBoundReplacement {
     pub auto_replace: bool,
     pub crop: Option<(u16, u16)>,
     pub bounds: Option<(u16, u16)>,
+    pub offset: Option<(u16, u16)>,
 }
 
 /// Replace a CZ file with the bitmap of a PNG file
@@ -403,7 +468,8 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     replacement_path: &P,
     version: &Option<u8>,
     depth: &Option<u16>,
-    crop_bound_replacement: CropBoundReplacement,
+    palette_clear: bool,
+    cb_info: CropBoundReplacement,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = input_path.as_ref();
     if !path.is_file() {
@@ -440,34 +506,50 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     cz.header_mut().set_width(repl_img.width() as u16);
     cz.header_mut().set_height(repl_img.height() as u16);
     cz.set_bitmap(repl_img.into_raw());
-    cz.clear_palette();
+
+    if palette_clear {
+        cz.clear_palette();
+    }
 
     // If the extended header exists and the width and height are the same
     // as the crop width and crop height, fix them to be the same.
     let header_ref = *cz.header();
-    if let Some(ext) = cz.extended_header_mut() {
-        if crop_equal && crop_bound_replacement.auto_replace {
+    if let Some(ext) = cz.extended_header_mut() && cb_info.auto_replace {
+        if crop_equal {
             ext.crop_width = header_ref.width();
             ext.crop_height = header_ref.height();
         }
 
-        if bounds_equal && crop_bound_replacement.auto_replace {
+        if bounds_equal {
             ext.bounds_width = header_ref.width();
             ext.bounds_height = header_ref.height();
         }
-
-        // Replace crop
-        if let Some(c) = crop_bound_replacement.crop {
-            ext.crop_width = c.0;
-            ext.crop_height = c.1;
-        }
-
-        // Replace bounds
-        if let Some(b) = crop_bound_replacement.bounds {
-            ext.bounds_width = b.0;
-            ext.bounds_height = b.1;
-        }
     }
+
+    // If crop and bounds are specified, create the extended header
+    // even if it doesn't exist
+    let mut cz = if cb_info.crop.is_some() || cb_info.bounds.is_some() || cb_info.offset.is_some() {
+        let mut ext_header = ExtendedHeader::new();
+
+        if let Some(c) = cb_info.crop {
+            ext_header.crop_width = c.0;
+            ext_header.crop_height = c.1;
+        }
+
+        if let Some(b) = cb_info.bounds {
+            ext_header.bounds_width = b.0;
+            ext_header.bounds_height = b.1;
+        }
+
+        if let Some(o) = cb_info.offset {
+            ext_header.offset_x = o.0;
+            ext_header.offset_y = o.1;
+        }
+
+        cz.with_extended_header(ext_header)
+    } else {
+        cz
+    };
 
     if let Some(depth) = depth {
         cz.header_mut().set_depth(*depth)
@@ -483,13 +565,17 @@ fn replace_cz<P: ?Sized + AsRef<Path>>(
     Ok(())
 }
 
-fn parse_dimensions(dim: &str) -> Result<(u16, u16), ParseIntError> {
+fn parse_dimensions(dim: &Option<String>) -> Result<Option<(u16, u16)>, ParseIntError> {
+    let Some(dim) = dim else {
+        return Ok(None)
+    };
+
     let mut out = [0, 0];
     for (i, dimension) in dim.split('x').enumerate().take(2) {
         out[i] = dimension.parse::<u16>()?;
     }
 
-    Ok((out[0], out[1]))
+    Ok(Some((out[0], out[1])))
 }
 
 fn pretty_error(message: &str) {
