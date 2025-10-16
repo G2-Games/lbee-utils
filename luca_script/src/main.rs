@@ -2,7 +2,7 @@ mod utils;
 
 use std::{fs, io::{Cursor, Read, Write}, sync::LazyLock};
 
-use byteorder_lite::{WriteBytesExt, ReadBytesExt, LE};
+use byteorder::{WriteBytesExt, ReadBytesExt, LE};
 use serde::{Deserialize, Serialize};
 use utils::Encoding;
 

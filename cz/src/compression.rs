@@ -5,7 +5,7 @@ use std::{
 
 use crate::binio::BitIo;
 use crate::common::CzError;
-use byteorder_lite::{ReadBytesExt, WriteBytesExt, LE};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 
 /// The size of compressed data in each chunk
 #[derive(Debug, Clone, Copy)]

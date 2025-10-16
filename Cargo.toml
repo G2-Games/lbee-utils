@@ -6,6 +6,9 @@ members = [
     "luca_pak", "utils", "luca_script",
 ]
 
+[workspace.dependencies]
+byteorder = "1.5"
+
 [workspace.package]
 authors = ["G2"]
 

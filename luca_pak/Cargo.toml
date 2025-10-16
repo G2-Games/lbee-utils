@@ -10,7 +10,7 @@ license = "MIT"
 authors.workspace = true
 
 [dependencies]
-byteorder-lite = "0.1"
+byteorder = { workspace = true }
 log = "0.4"
 thiserror = "2.0"
 

@@ -1,7 +1,7 @@
 use std::{error::Error, io::{Read, Write}};
 
 use encoding_rs::*;
-use byteorder_lite::{LE, ReadBytesExt};
+use byteorder::{LE, ReadBytesExt};
 
 pub enum Encoding {
     #[allow(dead_code)]

@@ -5,7 +5,7 @@ edition = "2021"
 authors.workspace = true
 
 [dependencies]
-byteorder-lite = "0.1.0"
+byteorder = { workspace = true}
 encoding_rs = "0.8.35"
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.133"

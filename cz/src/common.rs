@@ -2,7 +2,7 @@
 
 use std::io::{self, Read, Seek, Write};
 
-use byteorder_lite::{ReadBytesExt, WriteBytesExt, LE};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
