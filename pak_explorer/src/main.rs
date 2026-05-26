@@ -56,10 +56,10 @@ struct PakExplorer {
 }
 
 impl eframe::App for PakExplorer {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("PAK File Explorer");
-            ctx.options_mut(|o| o.theme_preference = ThemePreference::System);
+            ui.options_mut(|o| o.theme_preference = ThemePreference::System);
 
             ui.horizontal(|ui| {
                 if ui.button("Open file").clicked()
@@ -256,7 +256,7 @@ impl eframe::App for PakExplorer {
                                 }
                             }
 
-                            ctx.request_repaint_after(Duration::from_millis(50));
+                            ui.request_repaint_after(Duration::from_millis(50));
                         });
                     }
                     _ => {

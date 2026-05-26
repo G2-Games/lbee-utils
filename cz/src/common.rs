@@ -342,8 +342,8 @@ impl ExtendedHeader {
         output.write_u16::<LE>(self.bounds_width)?;
         output.write_u16::<LE>(self.bounds_height)?;
 
-        if self.unknown_width.is_some() {
-            output.write_u16::<LE>(self.unknown_width.unwrap())?;
+        if let Some(width) = self.unknown_width {
+            output.write_u16::<LE>(width)?;
             output.write_u16::<LE>(self.unknown_height.unwrap())?;
             output.write_u32::<LE>(self.unknown_2.unwrap())?;
         }
