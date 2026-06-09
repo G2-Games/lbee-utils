@@ -2,7 +2,7 @@ use clap::{
     error::{Error, ErrorKind},
     Parser, Subcommand,
 };
-use lbee_utils::version;
+use lbee_utils::{to_pretty_size, version};
 use luca_pak::Pak;
 use std::{fs, path::PathBuf, process::exit};
 
@@ -60,9 +60,14 @@ enum Commands {
         #[arg(value_name = "OUTPUT PATH")]
         output: PathBuf,
     },
+
+    /// List all entries in a PAK file with some extra information
+    List,
 }
 
 fn main() {
+    env_logger::init();
+
     let cli = Cli::parse();
 
     if cli.version {
@@ -177,6 +182,23 @@ fn main() {
             }
 
             pak.save(&output).unwrap();
+        }
+        Commands::List => {
+            print!("{}:", pak.path().to_string_lossy());
+            print!(" {} entries", pak.header().entry_count());
+            print!(", starting id {}", pak.header().id_start());
+            print!(", block size {} kiB", pak.header().block_size() / 1024);
+            print!(", data offset {} kiB", pak.header().data_offset() / 1024);
+            println!("\n");
+            println!("Entries:");
+            for entry in pak.entries() {
+                print!("{:<2}", entry.index());
+                print!(" {:<12}:", entry.name().clone().unwrap_or("NO NAME".to_string()));
+                print!(" {} file", entry.file_type());
+                print!(", {:>7}", to_pretty_size(entry.len() as u64));
+                print!(", id {}", entry.id());
+                println!();
+            }
         }
     }
 }

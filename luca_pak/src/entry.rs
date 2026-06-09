@@ -87,7 +87,7 @@ impl Entry {
             return EntryType::Unknown
         }
 
-        if self.data[0..2] == [b'C', b'Z'] {
+        if self.len() >= 3 && self.data[0..2] == [b'C', b'Z'] {
             match self.data[2] {
                 b'0' => EntryType::CZ0,
                 b'1' => EntryType::CZ1,
@@ -97,13 +97,13 @@ impl Entry {
                 b'5' => EntryType::CZ5,
                 _ => EntryType::Unknown,
             }
-        } else if self.data[0..3] == [b'M', b'V', b'T'] {
+        } else if self.len() >= 4 && self.data[0..3] == [b'M', b'V', b'T'] {
             EntryType::MVT
-        } else if self.data[0..4] == [b'R', b'I', b'F', b'F'] {
+        } else if self.len() >= 5 && self.data[0..4] == [b'R', b'I', b'F', b'F'] {
             EntryType::WAV
-        } else if self.data[0..4] == [b'O', b'g', b'g', b'S'] {
+        } else if self.len() >= 5 && self.data[0..4] == [b'O', b'g', b'g', b'S'] {
             EntryType::OGG
-        } else if self.data[0..6] == [b'O', b'G', b'G', b'P', b'A', b'K'] {
+        } else if self.len() >= 7 && self.data[0..6] == [b'O', b'G', b'G', b'P', b'A', b'K'] {
             EntryType::OGGPAK
         } else {
             EntryType::Unknown
