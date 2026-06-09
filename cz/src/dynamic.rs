@@ -1,4 +1,5 @@
 use byteorder::ReadBytesExt;
+use log::debug;
 use rgb::ComponentSlice;
 use std::{
     fs::File,
@@ -38,6 +39,9 @@ impl CzFile {
             header_extended = Some(ExtendedHeader::from_bytes(input, &header_common)?);
         }
         input.seek(SeekFrom::Start(header_common.length() as u64))?;
+
+        debug!("{:?}", header_common);
+        debug!("{:?}", header_extended);
 
         // Get the color palette if the bit depth is 8 or less
         let palette = if header_common.depth() <= 8 {
@@ -119,8 +123,9 @@ impl CzFile {
     /// This encodes everything based on options the header which have been
     /// set by the user. For example, to change the version of file to be
     /// saved, use [`CommonHeader::set_version()`]
-    pub fn encode<T: Write>(&self, mut output: &mut T) -> Result<(), CzError> {
+    pub fn encode<T: Write + Seek>(&self, mut output: &mut T) -> Result<(), CzError> {
         let mut header = *self.header();
+        debug!("{:?}", header);
 
         if header.version() == CzVersion::CZ2 {
             header.set_length(0x12)
@@ -132,6 +137,12 @@ impl CzFile {
             output.write_all(&[0, 0, 0])?;
         } else if let Some(ext) = self.header_extended {
             ext.write_into(&mut output)?;
+        }
+
+        // Pad out the header to the stated length
+        if let Ok(p) = output.stream_position() && (p as usize) < header.length() {
+            let padding_length = header.length() - p as usize;
+            let _ = output.write_all(&vec![0u8; padding_length]);
         }
 
         let output_bitmap;
