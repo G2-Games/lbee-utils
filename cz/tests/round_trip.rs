@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::io::{Cursor, Seek};
 
 use cz::{common::CzVersion, CzFile};
 
@@ -15,10 +15,10 @@ fn cz0_round_trip() {
     for image in TEST_IMAGES {
         let original_cz = CzFile::from_raw(CzVersion::CZ0, image.0, image.1, image.2.to_vec());
 
-        let mut cz_bytes = Vec::new();
+        let mut cz_bytes = Cursor::new(Vec::new());
         original_cz.encode(&mut cz_bytes).unwrap();
 
-        let mut cz_bytes = Cursor::new(cz_bytes);
+        cz_bytes.rewind().unwrap();
         let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
@@ -30,10 +30,10 @@ fn cz1_round_trip() {
     for image in TEST_IMAGES {
         let original_cz = CzFile::from_raw(CzVersion::CZ1, image.0, image.1, image.2.to_vec());
 
-        let mut cz_bytes = Vec::new();
+        let mut cz_bytes = Cursor::new(Vec::new());
         original_cz.encode(&mut cz_bytes).unwrap();
 
-        let mut cz_bytes = Cursor::new(cz_bytes);
+        cz_bytes.rewind().unwrap();
         let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
@@ -45,10 +45,10 @@ fn cz2_round_trip() {
     for image in TEST_IMAGES {
         let original_cz = CzFile::from_raw(CzVersion::CZ2, image.0, image.1, image.2.to_vec());
 
-        let mut cz_bytes = Vec::new();
+        let mut cz_bytes = Cursor::new(Vec::new());
         original_cz.encode(&mut cz_bytes).unwrap();
 
-        let mut cz_bytes = Cursor::new(cz_bytes);
+        cz_bytes.rewind().unwrap();
         let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
@@ -60,10 +60,10 @@ fn cz3_round_trip() {
     for image in TEST_IMAGES {
         let original_cz = CzFile::from_raw(CzVersion::CZ3, image.0, image.1, image.2.to_vec());
 
-        let mut cz_bytes = Vec::new();
+        let mut cz_bytes = Cursor::new(Vec::new());
         original_cz.encode(&mut cz_bytes).unwrap();
 
-        let mut cz_bytes = Cursor::new(cz_bytes);
+        cz_bytes.rewind().unwrap();
         let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());
@@ -75,10 +75,10 @@ fn cz4_round_trip() {
     for image in TEST_IMAGES {
         let original_cz = CzFile::from_raw(CzVersion::CZ4, image.0, image.1, image.2.to_vec());
 
-        let mut cz_bytes = Vec::new();
+        let mut cz_bytes = Cursor::new(Vec::new());
         original_cz.encode(&mut cz_bytes).unwrap();
 
-        let mut cz_bytes = Cursor::new(cz_bytes);
+        cz_bytes.rewind().unwrap();
         let decoded_cz = CzFile::decode(&mut cz_bytes).unwrap();
 
         assert_eq!(original_cz.as_raw(), decoded_cz.as_raw());

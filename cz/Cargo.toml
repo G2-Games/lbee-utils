@@ -13,8 +13,7 @@ authors.workspace = true
 byteorder = { workspace = true }
 thiserror = "2.0"
 imagequant = "4.3"
-rgb = "0.8"
-log = "0.4.32"
+log = "0.4"
 
 [lints]
 workspace = true

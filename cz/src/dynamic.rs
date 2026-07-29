@@ -1,6 +1,5 @@
 use byteorder::ReadBytesExt;
 use log::debug;
-use rgb::ComponentSlice;
 use std::{
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
@@ -158,7 +157,7 @@ impl CzFile {
                     output_bitmap = rgba_to_indexed(self.as_raw(), pal)?;
 
                     for rgba in pal.colors() {
-                        output.write_all(rgba.as_slice())?;
+                        output.write_all(&rgba.as_array())?;
                     }
                 } else {
                     // Generate a palette and corresponding indexed bitmap if there is none
@@ -168,7 +167,7 @@ impl CzFile {
                     let palette = result.1;
 
                     for rgba in palette {
-                        output.write_all(rgba.as_slice())?;
+                        output.write_all(&rgba.as_array())?;
                     }
                 }
             }

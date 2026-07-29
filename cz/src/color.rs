@@ -1,11 +1,40 @@
 use imagequant::Attributes;
-use rgb::{ComponentSlice, RGBA8};
 use std::{
     collections::HashMap,
     io::{Read, Seek},
 };
 
 use crate::common::{CommonHeader, CzError};
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RGBA8 {
+    red: u8,
+    green: u8,
+    blue: u8,
+    alpha: u8,
+}
+
+impl RGBA8 {
+    pub fn as_array(&self) -> [u8; 4] {
+        [
+            self.red,
+            self.green,
+            self.blue,
+            self.alpha
+        ]
+    }
+}
+
+impl From<[u8; 4]> for RGBA8 {
+    fn from(value: [u8; 4]) -> Self {
+        Self {
+            red: value[0],
+            green: value[1],
+            blue: value[2],
+            alpha: value[3]
+        }
+    }
+}
 
 /// A palette of RGBA values for indexed color
 #[derive(Debug, Clone)]
@@ -54,7 +83,7 @@ pub fn indexed_to_rgba(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzErr
     for byte in input.iter() {
         let color = palette.get(*byte as usize);
         if let Some(color) = color {
-            output_map.extend_from_slice(color.as_slice());
+            output_map.extend_from_slice(&color.as_array());
         } else {
             return Err(CzError::PaletteError);
         }
@@ -75,7 +104,7 @@ pub fn rgba_to_indexed(input: &[u8], palette: &Palette) -> Result<Vec<u8>, CzErr
                 let value = palette
                     .colors()
                     .iter()
-                    .position(|e| e.as_slice() == rgba)
+                    .position(|e| e.as_array() == rgba)
                     .unwrap_or_default() as u8;
 
                 cache.insert(rgba, value);
