@@ -52,8 +52,7 @@ All bytes in CZx files MUST be stored in little-endian format.
 ]
 
 = Header
-
-#columns(2)[
+All CZx files contain one or more header blocks, always appearing in the same order.
 
 == Block 1 — Basic Header
 All CZx files MUST begin with this header block. The header contains information
@@ -136,22 +135,17 @@ original data.
 
 ```rust
 ChunkInfo {
-	compressed_size: u32, // compressed size, bytes
-	original_size: u32,	 // original size, bytes
+    compressed_size: u32, // compressed size, bytes
+    original_size: u32,	 // original size, bytes
 }
 
 CompressionInfo {
-	chunk_number: u32,	 // the number of chunks
-	chunks: ChunkInfo,
+    chunk_number: u32,	 // the number of chunks
+    chunks: ChunkInfo,
 }
 ```
-]
-
-#pagebreak()
 
 = File Types
-
-#columns(2)[
 
 == CZ0
 CZ0 files are uncompressed, storing raw RGBA pixel data in a linear bitmap.
@@ -179,8 +173,6 @@ This method of compression is different from CZ1.
 This format is primarily used for storing text bitmaps in newer LUCA System
 games. Its use outside of text bitmaps is limited.
 
-#colbreak()
-
 == CZ3
 CZ3 files are compressed, storing modified RGBA pixel data using LZW
 compression. This compression scheme is the same as CZ1.
@@ -206,8 +198,6 @@ Little is known about the CZ5 format, as it has not been encountered in any
 released games so far. The only information about it has come from decompiling
 recent games which use the LUCA System engine, where it is referenced as part of
 the decoder for CZx files.
-
-]
 
 #v(2em)
 #line(length: 100%, stroke: 1.5pt + gray)
