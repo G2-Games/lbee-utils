@@ -34,9 +34,7 @@ This project would not have been possible without the work of these previous
 projects!
 
 ## Licensing
-The libraries are licensed under the 
-[MIT License](https://choosealicense.com/licenses/mit/) which allows for easy
-integration into existing projects. The applications and programs are licensed
+All libraries, applications, and programs are licensed
 under the [GPLv3](https://choosealicense.com/licenses/gpl-3.0/).
 
 The logo is licensed under 

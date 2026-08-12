@@ -6,13 +6,13 @@ description="""
 An encoder/decoder for CZ# image files used in the LUCA System engine by
 Prototype Ltd.
 """
-license = "MIT"
+license = "GPL-3.0-or-later"
 authors.workspace = true
 
 [dependencies]
 byteorder = { workspace = true }
 thiserror = "2.0"
-imagequant = "4.3"
+imagequant = "4.4"
 log = "0.4"
 
 [lints]

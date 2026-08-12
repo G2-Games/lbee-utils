@@ -6,7 +6,7 @@ description = """
 An encoder/decoder for PAK archive files used in the LUCA System engine by
 Prototype Ltd.
 """
-license = "MIT"
+license = "GPL-3.0-or-later"
 authors.workspace = true
 
 [dependencies]
